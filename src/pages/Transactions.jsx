@@ -5,21 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import AddTransactionModal from "@/components/modals/AddTransactionModal";
 import { 
   Plus, 
   Search, 
@@ -137,7 +129,7 @@ const accounts = [
 ];
 
 export default function Transactions() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -152,12 +144,12 @@ export default function Transactions() {
 
   const handleEditTransaction = (transaction) => {
     setEditingTransaction(transaction);
-    setIsDialogOpen(true);
+    setShowTransactionModal(true);
   };
 
   const handleCreateTransaction = () => {
     setEditingTransaction(null);
-    setIsDialogOpen(true);
+    setShowTransactionModal(true);
   };
 
   const getStatusBadge = (status) => {
@@ -299,105 +291,11 @@ export default function Transactions() {
         </CardContent>
       </Card>
 
-      {/* Transaction Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>
-              {editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}
-            </DialogTitle>
-            <DialogDescription>
-              {editingTransaction ? 'Update transaction details' : 'Enter details for the new transaction'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Input
-                id="description"
-                placeholder="Enter description"
-                defaultValue={editingTransaction?.description}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="amount">Amount</Label>
-              <Input
-                id="amount"
-                type="number"
-                placeholder="0.00"
-                defaultValue={editingTransaction?.amount ? Math.abs(editingTransaction.amount) : ""}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="type">Type</Label>
-                <Select defaultValue={editingTransaction?.type || "expense"}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="income">Income</SelectItem>
-                    <SelectItem value="expense">Expense</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="category">Category</Label>
-                <Select defaultValue={editingTransaction?.category}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map(category => (
-                      <SelectItem key={category} value={category}>{category}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="account">Account</Label>
-                <Select defaultValue={editingTransaction?.account}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accounts.map(account => (
-                      <SelectItem key={account} value={account}>{account}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="date">Date</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  defaultValue={editingTransaction?.date || new Date().toISOString().split('T')[0]}
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="receipt">Receipt (Optional)</Label>
-              <div className="flex items-center gap-2">
-                <Input id="receipt" type="file" className="flex-1" />
-                <Button variant="outline" size="icon" className="h-10 w-10">
-                  <Receipt className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => setIsDialogOpen(false)}>
-              {editingTransaction ? 'Update Transaction' : 'Add Transaction'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Transaction Modal */}
+      <AddTransactionModal 
+        open={showTransactionModal} 
+        onOpenChange={setShowTransactionModal}
+      />
     </div>
   );
 }

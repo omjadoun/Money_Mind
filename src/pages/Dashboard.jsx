@@ -14,7 +14,12 @@ import {
 } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
 import heroImage from "@/assets/dashboard-hero.jpg";
+import AddTransactionModal from "@/components/modals/AddTransactionModal";
+import UploadReceiptModal from "@/components/modals/UploadReceiptModal";
 
 const monthlyData = [
   { month: "Jan", income: 4500, expenses: 3200 },
@@ -44,6 +49,10 @@ const chartConfig = {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
   const totalIncome = 5300;
   const totalExpenses = 3900;
   const netSavings = totalIncome - totalExpenses;
@@ -60,14 +69,14 @@ export default function Dashboard() {
           />
         </div>
         <div className="relative p-8 space-y-4">
-          <h1 className="text-4xl font-bold">Welcome back, om!</h1>
+          <h1 className="text-4xl font-bold">Welcome back, {user?.email?.split('@')[0] || 'User'}!</h1>
           <p className="text-lg opacity-90">Here's your financial overview for this month</p>
           <div className="flex gap-4 pt-4">
-            <Button variant="secondary" className="gap-2">
+            <Button variant="secondary" className="gap-2" onClick={() => setShowTransactionModal(true)}>
               <Plus className="h-4 w-4" />
               Add Transaction
             </Button>
-            <Button variant="outline" className="gap-2 border-white/20 text-white hover:bg-white/10">
+            <Button variant="outline" className="gap-2 border-white/20 text-white hover:bg-white/10" onClick={() => setShowReceiptModal(true)}>
               <Receipt className="h-4 w-4" />
               Upload Receipt
             </Button>
@@ -239,6 +248,16 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modals */}
+      <AddTransactionModal 
+        open={showTransactionModal} 
+        onOpenChange={setShowTransactionModal} 
+      />
+      <UploadReceiptModal 
+        open={showReceiptModal} 
+        onOpenChange={setShowReceiptModal} 
+      />
     </div>
   );
 }

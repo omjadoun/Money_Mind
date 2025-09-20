@@ -2,26 +2,9 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import AddBudgetModal from "@/components/modals/AddBudgetModal";
 import { 
   Plus, 
   Edit, 
@@ -85,7 +68,7 @@ const budgetCategories = [
 ];
 
 export default function Budget() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [editingBudget, setEditingBudget] = useState(null);
 
   const totalBudget = budgetCategories.reduce((acc, cat) => acc + cat.budgetAmount, 0);
@@ -101,12 +84,12 @@ export default function Budget() {
 
   const handleEditBudget = (budget) => {
     setEditingBudget(budget);
-    setIsDialogOpen(true);
+    setShowBudgetModal(true);
   };
 
   const handleCreateBudget = () => {
     setEditingBudget(null);
-    setIsDialogOpen(true);
+    setShowBudgetModal(true);
   };
 
   return (
@@ -308,67 +291,12 @@ export default function Budget() {
         </CardContent>
       </Card>
 
-      {/* Budget Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>
-              {editingBudget ? 'Edit Budget' : 'Create New Budget'}
-            </DialogTitle>
-            <DialogDescription>
-              Set spending limits for your expense categories
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="category">Category</Label>
-              <Select defaultValue={editingBudget?.name}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Food & Dining">Food & Dining</SelectItem>
-                  <SelectItem value="Transportation">Transportation</SelectItem>
-                  <SelectItem value="Shopping">Shopping</SelectItem>
-                  <SelectItem value="Entertainment">Entertainment</SelectItem>
-                  <SelectItem value="Bills & Utilities">Bills & Utilities</SelectItem>
-                  <SelectItem value="Healthcare">Healthcare</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="amount">Budget Amount</Label>
-              <Input
-                id="amount"
-                type="number"
-                placeholder="0.00"
-                defaultValue={editingBudget?.budgetAmount}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="period">Period</Label>
-              <Select defaultValue={editingBudget?.period || "monthly"}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => setIsDialogOpen(false)}>
-              {editingBudget ? 'Update Budget' : 'Create Budget'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Budget Modal */}
+      <AddBudgetModal 
+        open={showBudgetModal} 
+        onOpenChange={setShowBudgetModal}
+        editingBudget={editingBudget}
+      />
     </div>
   );
 }

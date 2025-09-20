@@ -12,31 +12,32 @@ import Budget from "./pages/Budget";
 import Settings from "./pages/Settings";
 import Premium from "./pages/Premium";
 import NotFound from "./pages/NotFound";
-
+import { AuthProvider } from "@/contexts/AuthContext";
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="light" storageKey="expense-tracker-theme">
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/transactions" element={<Transactions />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/budget" element={<Budget />} />
-              <Route path="/settings" element={<Settings />} />
-              {/* <Route path="/premium" element={<Premium />} /> */}
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Layout>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
+    <AuthProvider>  {/* <-- Add this */}
+      <ThemeProvider defaultTheme="light" storageKey="expense-tracker-theme">
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/transactions" element={<Transactions />} />
+                <Route path="/analytics" element={<Analytics />} />
+                <Route path="/budget" element={<Budget />} />
+                <Route path="/settings" element={<Settings />} />
+                {/* <Route path="/premium" element={<Premium />} /> */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Layout>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
+    </AuthProvider> {/* <-- Close AuthProvider */}
   </QueryClientProvider>
 );
 
