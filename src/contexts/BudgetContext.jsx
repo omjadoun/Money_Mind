@@ -1,62 +1,71 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useTransactions } from './TransactionContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthContext';
 
 const BudgetContext = createContext();
 
-// Budget service for localStorage operations
+// Budget service for Supabase operations
 class BudgetService {
-  static STORAGE_KEY = 'moneyMind_budgets';
-
-  static getBudgets() {
-    try {
-      const budgets = localStorage.getItem(this.STORAGE_KEY);
-      return budgets ? JSON.parse(budgets) : [];
-    } catch (error) {
+  static async getBudgets() {
+    const { data, error } = await supabase
+      .from('budgets')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
       console.error('Error loading budgets:', error);
-      return [];
-    }
-  }
-
-  static saveBudgets(budgets) {
-    try {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(budgets));
-    } catch (error) {
-      console.error('Error saving budgets:', error);
-      throw new Error('Failed to save budget');
-    }
-  }
-
-  static addBudget(budgetData) {
-    const budgets = this.getBudgets();
-    const newBudget = {
-      id: Date.now().toString(),
-      ...budgetData,
-      createdAt: new Date().toISOString(),
-    };
-    
-    budgets.push(newBudget);
-    this.saveBudgets(budgets);
-    return newBudget;
-  }
-
-  static updateBudget(id, updateData) {
-    const budgets = this.getBudgets();
-    const index = budgets.findIndex(b => b.id === id);
-    
-    if (index === -1) {
-      throw new Error('Budget not found');
+      throw error;
     }
     
-    budgets[index] = { ...budgets[index], ...updateData };
-    this.saveBudgets(budgets);
-    return budgets[index];
+    return data || [];
   }
 
-  static deleteBudget(id) {
-    const budgets = this.getBudgets();
-    const filteredBudgets = budgets.filter(b => b.id !== id);
-    this.saveBudgets(filteredBudgets);
+  static async addBudget(budgetData) {
+    const { data, error } = await supabase
+      .from('budgets')
+      .insert([{
+        ...budgetData,
+        user_id: (await supabase.auth.getUser()).data.user?.id
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error adding budget:', error);
+      throw error;
+    }
+    
+    return data;
+  }
+
+  static async updateBudget(id, updateData) {
+    const { data, error } = await supabase
+      .from('budgets')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating budget:', error);
+      throw error;
+    }
+    
+    return data;
+  }
+
+  static async deleteBudget(id) {
+    const { error } = await supabase
+      .from('budgets')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting budget:', error);
+      throw error;
+    }
   }
 }
 
@@ -64,27 +73,48 @@ export function BudgetProvider({ children }) {
   const [budgets, setBudgets] = useState([]);
   const [loading, setLoading] = useState(true);
   const { getSpendingByCategory } = useTransactions();
+  const { user } = useAuth();
 
-  // Load budgets on mount
+  // Load budgets on mount and when user changes
   useEffect(() => {
-    try {
-      const loadedBudgets = BudgetService.getBudgets();
-      setBudgets(loadedBudgets);
-    } catch (error) {
-      console.error('Failed to load budgets:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load budgets",
-        variant: "destructive",
-      });
-    } finally {
+    if (!user) {
+      setBudgets([]);
       setLoading(false);
+      return;
     }
-  }, []);
+
+    const loadBudgets = async () => {
+      try {
+        setLoading(true);
+        const loadedBudgets = await BudgetService.getBudgets();
+        setBudgets(loadedBudgets);
+      } catch (error) {
+        console.error('Failed to load budgets:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load budgets",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadBudgets();
+  }, [user]);
 
   const addBudget = async (budgetData) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to add budgets",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      const newBudget = BudgetService.addBudget(budgetData);
+      const newBudget = await BudgetService.addBudget(budgetData);
       setBudgets(prev => [...prev, newBudget]);
       
       toast({
@@ -105,8 +135,10 @@ export function BudgetProvider({ children }) {
   };
 
   const updateBudget = async (id, updateData) => {
+    if (!user) return;
+    
     try {
-      const updatedBudget = BudgetService.updateBudget(id, updateData);
+      const updatedBudget = await BudgetService.updateBudget(id, updateData);
       setBudgets(prev => 
         prev.map(b => b.id === id ? updatedBudget : b)
       );
@@ -129,8 +161,10 @@ export function BudgetProvider({ children }) {
   };
 
   const deleteBudget = async (id) => {
+    if (!user) return;
+    
     try {
-      BudgetService.deleteBudget(id);
+      await BudgetService.deleteBudget(id);
       setBudgets(prev => prev.filter(b => b.id !== id));
       
       toast({

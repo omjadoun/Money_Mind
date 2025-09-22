@@ -1,7 +1,16 @@
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 
 export function ProtectedRoute({ children }) {
-  const { loading } = useAuth()
+  const { user, loading } = useAuth()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth')
+    }
+  }, [user, loading, navigate])
 
   if (loading) {
     return (
@@ -12,6 +21,10 @@ export function ProtectedRoute({ children }) {
         </div>
       </div>
     )
+  }
+
+  if (!user) {
+    return null // Will redirect to auth
   }
 
   return children

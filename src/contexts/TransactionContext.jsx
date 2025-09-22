@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthContext';
 
 const TransactionContext = createContext();
 
@@ -23,87 +25,114 @@ export const PAYMENT_METHODS = [
   'Bank Transfer'
 ];
 
-// Transaction service for localStorage operations
+// Transaction service for Supabase operations
 class TransactionService {
-  static STORAGE_KEY = 'moneyMind_transactions';
-
-  static getTransactions() {
-    try {
-      const transactions = localStorage.getItem(this.STORAGE_KEY);
-      return transactions ? JSON.parse(transactions) : [];
-    } catch (error) {
+  static async getTransactions() {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('date', { ascending: false });
+    
+    if (error) {
       console.error('Error loading transactions:', error);
-      return [];
-    }
-  }
-
-  static saveTransactions(transactions) {
-    try {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(transactions));
-    } catch (error) {
-      console.error('Error saving transactions:', error);
-      throw new Error('Failed to save transaction');
-    }
-  }
-
-  static addTransaction(transactionData) {
-    const transactions = this.getTransactions();
-    const newTransaction = {
-      id: Date.now().toString(),
-      ...transactionData,
-      date: transactionData.date || new Date().toISOString().split('T')[0],
-      createdAt: new Date().toISOString(),
-    };
-    
-    transactions.unshift(newTransaction);
-    this.saveTransactions(transactions);
-    return newTransaction;
-  }
-
-  static updateTransaction(id, updateData) {
-    const transactions = this.getTransactions();
-    const index = transactions.findIndex(t => t.id === id);
-    
-    if (index === -1) {
-      throw new Error('Transaction not found');
+      throw error;
     }
     
-    transactions[index] = { ...transactions[index], ...updateData };
-    this.saveTransactions(transactions);
-    return transactions[index];
+    return data || [];
   }
 
-  static deleteTransaction(id) {
-    const transactions = this.getTransactions();
-    const filteredTransactions = transactions.filter(t => t.id !== id);
-    this.saveTransactions(filteredTransactions);
+  static async addTransaction(transactionData) {
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert([{
+        ...transactionData,
+        user_id: (await supabase.auth.getUser()).data.user?.id
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error adding transaction:', error);
+      throw error;
+    }
+    
+    return data;
+  }
+
+  static async updateTransaction(id, updateData) {
+    const { data, error } = await supabase
+      .from('transactions')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating transaction:', error);
+      throw error;
+    }
+    
+    return data;
+  }
+
+  static async deleteTransaction(id) {
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting transaction:', error);
+      throw error;
+    }
   }
 }
 
 export function TransactionProvider({ children }) {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  // Load transactions on mount
+  // Load transactions on mount and when user changes
   useEffect(() => {
-    try {
-      const loadedTransactions = TransactionService.getTransactions();
-      setTransactions(loadedTransactions);
-    } catch (error) {
-      console.error('Failed to load transactions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load transactions",
-        variant: "destructive",
-      });
-    } finally {
+    if (!user) {
+      setTransactions([]);
       setLoading(false);
+      return;
     }
-  }, []);
+
+    const loadTransactions = async () => {
+      try {
+        setLoading(true);
+        const loadedTransactions = await TransactionService.getTransactions();
+        setTransactions(loadedTransactions);
+      } catch (error) {
+        console.error('Failed to load transactions:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load transactions",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTransactions();
+  }, [user]);
 
   const addTransaction = async (transactionData) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to add transactions",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      const newTransaction = TransactionService.addTransaction(transactionData);
+      const newTransaction = await TransactionService.addTransaction(transactionData);
       setTransactions(prev => [newTransaction, ...prev]);
       
       toast({
@@ -124,8 +153,10 @@ export function TransactionProvider({ children }) {
   };
 
   const updateTransaction = async (id, updateData) => {
+    if (!user) return;
+    
     try {
-      const updatedTransaction = TransactionService.updateTransaction(id, updateData);
+      const updatedTransaction = await TransactionService.updateTransaction(id, updateData);
       setTransactions(prev => 
         prev.map(t => t.id === id ? updatedTransaction : t)
       );
@@ -148,8 +179,10 @@ export function TransactionProvider({ children }) {
   };
 
   const deleteTransaction = async (id) => {
+    if (!user) return;
+    
     try {
-      TransactionService.deleteTransaction(id);
+      await TransactionService.deleteTransaction(id);
       setTransactions(prev => prev.filter(t => t.id !== id));
       
       toast({
