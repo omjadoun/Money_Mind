@@ -31,9 +31,9 @@ const categories = [
 export default function AddBudgetModal({ open, onOpenChange, editingBudget = null, onSave }) {
   const [formData, setFormData] = useState({
     category: editingBudget?.category || "",
-    budgetLimit: editingBudget?.budgetLimit || "",
-    startDate: editingBudget?.startDate || new Date().toISOString().split('T')[0],
-    endDate: editingBudget?.endDate || (() => {
+    budget_limit: editingBudget?.budget_limit || "",
+    start_date: editingBudget?.start_date || new Date().toISOString().split('T')[0],
+    end_date: editingBudget?.end_date || (() => {
       const date = new Date();
       date.setMonth(date.getMonth() + 1);
       return date.toISOString().split('T')[0];
@@ -45,9 +45,9 @@ export default function AddBudgetModal({ open, onOpenChange, editingBudget = nul
     if (editingBudget) {
       setFormData({
         category: editingBudget.category || "",
-        budgetLimit: editingBudget.budgetLimit || "",
-        startDate: editingBudget.startDate || new Date().toISOString().split('T')[0],
-        endDate: editingBudget.endDate || (() => {
+        budget_limit: editingBudget.budget_limit || "",
+        start_date: editingBudget.start_date || new Date().toISOString().split('T')[0],
+        end_date: editingBudget.end_date || (() => {
           const date = new Date();
           date.setMonth(date.getMonth() + 1);
           return date.toISOString().split('T')[0];
@@ -68,9 +68,9 @@ export default function AddBudgetModal({ open, onOpenChange, editingBudget = nul
       // Reset form
       setFormData({
         category: "",
-        budgetLimit: "",
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: (() => {
+        budget_limit: "",
+        start_date: new Date().toISOString().split('T')[0],
+        end_date: (() => {
           const date = new Date();
           date.setMonth(date.getMonth() + 1);
           return date.toISOString().split('T')[0];
@@ -116,35 +116,35 @@ export default function AddBudgetModal({ open, onOpenChange, editingBudget = nul
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="budgetLimit">Budget Limit</Label>
+              <Label htmlFor="budget_limit">Budget Limit</Label>
               <Input
-                id="budgetLimit"
+                id="budget_limit"
                 type="number"
                 step="0.01"
                 placeholder="0.00"
-                value={formData.budgetLimit}
-                onChange={(e) => handleInputChange("budgetLimit", e.target.value)}
+                value={formData.budget_limit}
+                onChange={(e) => handleInputChange("budget_limit", e.target.value)}
                 required
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="startDate">Start Date</Label>
+                <Label htmlFor="start_date">Start Date</Label>
                 <Input
-                  id="startDate"
+                  id="start_date"
                   type="date"
-                  value={formData.startDate}
-                  onChange={(e) => handleInputChange("startDate", e.target.value)}
+                  value={formData.start_date}
+                  onChange={(e) => handleInputChange("start_date", e.target.value)}
                   required
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="endDate">End Date</Label>
+                <Label htmlFor="end_date">End Date</Label>
                 <Input
-                  id="endDate"
+                  id="end_date"
                   type="date"
-                  value={formData.endDate}
-                  onChange={(e) => handleInputChange("endDate", e.target.value)}
+                  value={formData.end_date}
+                  onChange={(e) => handleInputChange("end_date", e.target.value)}
                   required
                 />
               </div>

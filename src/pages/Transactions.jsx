@@ -42,7 +42,7 @@ export default function Transactions() {
     category: t.category,
     date: t.date,
     type: t.type,
-    account: t.paymentMethod,
+    account: t.payment_method,
     status: "completed"
   }));
 

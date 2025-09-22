@@ -30,7 +30,7 @@ export default function AddTransactionModal({ open, onOpenChange, editingTransac
     category: editingTransaction?.category || "",
     description: editingTransaction?.description || "",
     date: editingTransaction?.date || new Date().toISOString().split('T')[0],
-    paymentMethod: editingTransaction?.paymentMethod || ""
+    payment_method: editingTransaction?.payment_method || ""
   });
   
   const [loading, setLoading] = useState(false);
@@ -39,7 +39,7 @@ export default function AddTransactionModal({ open, onOpenChange, editingTransac
     e.preventDefault();
     
     // Validation
-    if (!formData.description.trim() || !formData.amount || !formData.category || !formData.paymentMethod) {
+    if (!formData.description.trim() || !formData.amount || !formData.category || !formData.payment_method) {
       return;
     }
 
@@ -51,7 +51,7 @@ export default function AddTransactionModal({ open, onOpenChange, editingTransac
         category: formData.category,
         description: formData.description.trim(),
         date: formData.date,
-        paymentMethod: formData.paymentMethod
+        payment_method: formData.payment_method
       };
 
       if (editingTransaction) {
@@ -67,7 +67,7 @@ export default function AddTransactionModal({ open, onOpenChange, editingTransac
         category: "",
         description: "",
         date: new Date().toISOString().split('T')[0],
-        paymentMethod: ""
+        payment_method: ""
       });
       
       onOpenChange(false);
@@ -177,8 +177,8 @@ export default function AddTransactionModal({ open, onOpenChange, editingTransac
 
               {/* Payment Method */}
               <div className="grid gap-2">
-                <Label htmlFor="paymentMethod">Payment Method</Label>
-                <Select value={formData.paymentMethod} onValueChange={(value) => handleInputChange("paymentMethod", value)}>
+                <Label htmlFor="payment_method">Payment Method</Label>
+                <Select value={formData.payment_method} onValueChange={(value) => handleInputChange("payment_method", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select method" />
                   </SelectTrigger>

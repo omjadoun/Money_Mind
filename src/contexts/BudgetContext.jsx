@@ -200,18 +200,18 @@ export function BudgetProvider({ children }) {
   const getBudgetMetrics = () => {
     const budgetCategories = getBudgetCategories();
     
-    const totalBudget = budgetCategories.reduce((acc, cat) => acc + parseFloat(cat.budgetLimit || 0), 0);
+    const totalBudget = budgetCategories.reduce((acc, cat) => acc + parseFloat(cat.budget_limit || 0), 0);
     const totalSpent = budgetCategories.reduce((acc, cat) => acc + parseFloat(cat.spentAmount || 0), 0);
     const remainingBudget = totalBudget - totalSpent;
     const budgetUsedPercentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
     const overBudgetCategories = budgetCategories.filter(cat => 
-      parseFloat(cat.spentAmount || 0) > parseFloat(cat.budgetLimit || 0)
+      parseFloat(cat.spentAmount || 0) > parseFloat(cat.budget_limit || 0)
     );
     
     const nearLimitCategories = budgetCategories.filter(cat => {
       const spent = parseFloat(cat.spentAmount || 0);
-      const limit = parseFloat(cat.budgetLimit || 0);
+      const limit = parseFloat(cat.budget_limit || 0);
       if (limit === 0) return false;
       const percentage = (spent / limit) * 100;
       return percentage >= 80 && percentage <= 100;

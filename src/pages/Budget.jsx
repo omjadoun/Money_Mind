@@ -217,7 +217,7 @@ export default function Budget() {
             ) : (
               budgetCategories.map((category, index) => {
                 const spent = parseFloat(category.spentAmount || 0);
-                const budget = parseFloat(category.budgetLimit || 0);
+                const budget = parseFloat(category.budget_limit || 0);
                 const percentage = budget > 0 ? (spent / budget) * 100 : 0;
                 const isOverBudget = percentage > 100;
                 const isNearLimit = percentage >= 80 && percentage <= 100;
@@ -230,7 +230,7 @@ export default function Budget() {
                         <div>
                           <h3 className="font-medium">{category.category}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {new Date(category.startDate).toLocaleDateString()} - {new Date(category.endDate).toLocaleDateString()}
+                            {new Date(category.start_date).toLocaleDateString()} - {new Date(category.end_date).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
