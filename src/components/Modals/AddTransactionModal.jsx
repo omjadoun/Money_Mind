@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -17,38 +18,64 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTransactions } from "@/contexts/TransactionContext";
+import { DollarSign } from "lucide-react";
 
-const categories = [
-  "Food & Dining",
-  "Transportation", 
-  "Shopping",
-  "Entertainment",
-  "Bills & Utilities",
-  "Healthcare",
-  "Income",
-  "Investment",
-  "Other"
-];
-
-export default function AddTransactionModal({ open, onOpenChange }) {
+export default function AddTransactionModal({ open, onOpenChange, editingTransaction = null }) {
+  const { addTransaction, updateTransaction, categories, paymentMethods } = useTransactions();
+  
   const [formData, setFormData] = useState({
-    title: "",
-    amount: "",
-    category: "",
-    date: new Date().toISOString().split('T')[0]
+    type: editingTransaction?.type || "expense",
+    amount: editingTransaction?.amount || "",
+    category: editingTransaction?.category || "",
+    description: editingTransaction?.description || "",
+    date: editingTransaction?.date || new Date().toISOString().split('T')[0],
+    paymentMethod: editingTransaction?.paymentMethod || ""
   });
+  
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Transaction Form Data:", formData);
-    // Reset form
-    setFormData({
-      title: "",
-      amount: "",
-      category: "",
-      date: new Date().toISOString().split('T')[0]
-    });
-    onOpenChange(false);
+    
+    // Validation
+    if (!formData.description.trim() || !formData.amount || !formData.category || !formData.paymentMethod) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const transactionData = {
+        type: formData.type,
+        amount: parseFloat(formData.amount),
+        category: formData.category,
+        description: formData.description.trim(),
+        date: formData.date,
+        paymentMethod: formData.paymentMethod
+      };
+
+      if (editingTransaction) {
+        await updateTransaction(editingTransaction.id, transactionData);
+      } else {
+        await addTransaction(transactionData);
+      }
+
+      // Reset form
+      setFormData({
+        type: "expense",
+        amount: "",
+        category: "",
+        description: "",
+        date: new Date().toISOString().split('T')[0],
+        paymentMethod: ""
+      });
+      
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Transaction error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleInputChange = (field, value) => {
@@ -58,52 +85,113 @@ export default function AddTransactionModal({ open, onOpenChange }) {
     }));
   };
 
+  // Format amount for display
+  const formatAmount = (value) => {
+    if (!value) return "";
+    const number = parseFloat(value.toString().replace(/[^0-9.-]/g, ''));
+    return isNaN(number) ? "" : number.toString();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Add New Transaction</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-primary" />
+            {editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}
+          </DialogTitle>
           <DialogDescription>
-            Enter details for the new transaction
+            {editingTransaction ? 'Update transaction details' : 'Enter details for the new transaction'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-6 py-4">
+            {/* Transaction Type Toggle */}
+            <div className="flex items-center justify-between p-4 rounded-lg border">
+              <div className="space-y-0.5">
+                <Label className="text-base font-medium">Transaction Type</Label>
+                <div className="text-sm text-muted-foreground">
+                  {formData.type === 'income' ? 'Money coming in' : 'Money going out'}
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <Label className={formData.type === 'expense' ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+                  Expense
+                </Label>
+                <Switch
+                  checked={formData.type === 'income'}
+                  onCheckedChange={(checked) => handleInputChange("type", checked ? "income" : "expense")}
+                />
+                <Label className={formData.type === 'income' ? 'text-success font-medium' : 'text-muted-foreground'}>
+                  Income
+                </Label>
+              </div>
+            </div>
+
+            {/* Amount */}
             <div className="grid gap-2">
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="amount">Amount ($)</Label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  className="pl-10 text-right text-lg font-semibold"
+                  value={formData.amount}
+                  onChange={(e) => handleInputChange("amount", formatAmount(e.target.value))}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
               <Input
-                id="title"
-                placeholder="Enter transaction title"
-                value={formData.title}
-                onChange={(e) => handleInputChange("title", e.target.value)}
+                id="description"
+                placeholder="Enter transaction description"
+                value={formData.description}
+                onChange={(e) => handleInputChange("description", e.target.value)}
                 required
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="amount">Amount</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={formData.amount}
-                onChange={(e) => handleInputChange("amount", e.target.value)}
-                required
-              />
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Category */}
+              <div className="grid gap-2">
+                <Label htmlFor="category">Category</Label>
+                <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(category => (
+                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Payment Method */}
+              <div className="grid gap-2">
+                <Label htmlFor="paymentMethod">Payment Method</Label>
+                <Select value={formData.paymentMethod} onValueChange={(value) => handleInputChange("paymentMethod", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentMethods.map(method => (
+                      <SelectItem key={method} value={method}>{method}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="category">Category</Label>
-              <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(category => (
-                    <SelectItem key={category} value={category}>{category}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+
+            {/* Date */}
             <div className="grid gap-2">
               <Label htmlFor="date">Date</Label>
               <Input
@@ -120,11 +208,12 @@ export default function AddTransactionModal({ open, onOpenChange }) {
               type="button" 
               variant="outline" 
               onClick={() => onOpenChange(false)}
+              disabled={loading}
             >
               Cancel
             </Button>
-            <Button type="submit">
-              Submit
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Saving...' : editingTransaction ? 'Update Transaction' : 'Add Transaction'}
             </Button>
           </DialogFooter>
         </form>

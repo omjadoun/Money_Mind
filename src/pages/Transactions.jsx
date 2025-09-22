@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import AddTransactionModal from "@/components/modals/AddTransactionModal";
+import { useTransactions } from "@/contexts/TransactionContext";
 import { 
   Plus, 
   Search, 
@@ -25,117 +26,27 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-const transactions = [
-  {
-    id: "1",
-    description: "Grocery Shopping",
-    amount: -85.99,
-    category: "Food & Dining",
-    date: "2024-01-15",
-    type: "expense",
-    account: "Credit Card",
-    status: "completed"
-  },
-  {
-    id: "2",
-    description: "Salary Deposit",
-    amount: 2500.00,
-    category: "Income",
-    date: "2024-01-14", 
-    type: "income",
-    account: "Checking",
-    status: "completed"
-  },
-  {
-    id: "3",
-    description: "Electric Bill",
-    amount: -120.50,
-    category: "Bills & Utilities",
-    date: "2024-01-13",
-    type: "expense",
-    account: "Checking",
-    status: "completed"
-  },
-  {
-    id: "4",
-    description: "Coffee Shop",
-    amount: -12.75,
-    category: "Food & Dining",
-    date: "2024-01-12",
-    type: "expense",
-    account: "Credit Card",
-    status: "completed"
-  },
-  {
-    id: "5",
-    description: "Freelance Work",
-    amount: 800.00,
-    category: "Income",
-    date: "2024-01-11",
-    type: "income",
-    account: "Savings",
-    status: "pending"
-  },
-  {
-    id: "6",
-    description: "Amazon Purchase",
-    amount: -45.99,
-    category: "Shopping",
-    date: "2024-01-10",
-    type: "expense",
-    account: "Credit Card",
-    status: "completed"
-  },
-  {
-    id: "7",
-    description: "Gas Station",
-    amount: -38.75,
-    category: "Transportation",
-    date: "2024-01-09",
-    type: "expense",
-    account: "Credit Card",
-    status: "completed"
-  },
-  {
-    id: "8",
-    description: "Investment Dividend",
-    amount: 120.25,
-    category: "Investment",
-    date: "2024-01-08",
-    type: "income",
-    account: "Investment",
-    status: "completed"
-  }
-];
-
-const categories = [
-  "Food & Dining",
-  "Transportation",
-  "Shopping",
-  "Entertainment",
-  "Bills & Utilities",
-  "Healthcare",
-  "Income",
-  "Investment",
-  "Other"
-];
-
-const accounts = [
-  "Checking",
-  "Savings",
-  "Credit Card",
-  "Investment",
-  "Cash"
-];
-
 export default function Transactions() {
+  const { transactions, deleteTransaction, categories, paymentMethods } = useTransactions();
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
 
-  const filteredTransactions = transactions.filter(transaction => {
+  // Convert transactions to display format
+  const displayTransactions = transactions.map(t => ({
+    id: t.id,
+    description: t.description,
+    amount: t.type === 'income' ? t.amount : -t.amount,
+    category: t.category,
+    date: t.date,
+    type: t.type,
+    account: t.paymentMethod,
+    status: "completed"
+  }));
+
+  const filteredTransactions = displayTransactions.filter(transaction => {
     const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === "all" || transaction.category === selectedCategory;
     const matchesType = selectedType === "all" || transaction.type === selectedType;
@@ -150,6 +61,16 @@ export default function Transactions() {
   const handleCreateTransaction = () => {
     setEditingTransaction(null);
     setShowTransactionModal(true);
+  };
+
+  const handleDeleteTransaction = async (id) => {
+    if (confirm("Are you sure you want to delete this transaction?")) {
+      try {
+        await deleteTransaction(id);
+      } catch (error) {
+        console.error("Failed to delete transaction:", error);
+      }
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -238,7 +159,19 @@ export default function Transactions() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {filteredTransactions.map((transaction) => (
+            {filteredTransactions.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Receipt className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">No transactions found</p>
+                <p className="text-sm">
+                  {searchTerm || selectedCategory !== "all" || selectedType !== "all" 
+                    ? "Try adjusting your filters or search term" 
+                    : "Add your first transaction to get started"
+                  }
+                </p>
+              </div>
+            ) : (
+              filteredTransactions.map((transaction) => (
               <div
                 key={transaction.id}
                 className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
@@ -280,13 +213,19 @@ export default function Transactions() {
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 hover:text-destructive"
+                      onClick={() => handleDeleteTransaction(transaction.id)}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
@@ -295,6 +234,7 @@ export default function Transactions() {
       <AddTransactionModal 
         open={showTransactionModal} 
         onOpenChange={setShowTransactionModal}
+        editingTransaction={editingTransaction}
       />
     </div>
   );

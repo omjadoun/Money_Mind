@@ -28,10 +28,10 @@ const categories = [
   "Other"
 ];
 
-export default function AddBudgetModal({ open, onOpenChange, editingBudget = null }) {
+export default function AddBudgetModal({ open, onOpenChange, editingBudget = null, onSave }) {
   const [formData, setFormData] = useState({
-    category: editingBudget?.name || "",
-    budgetLimit: editingBudget?.budgetAmount || "",
+    category: editingBudget?.category || "",
+    budgetLimit: editingBudget?.budgetLimit || "",
     startDate: editingBudget?.startDate || new Date().toISOString().split('T')[0],
     endDate: editingBudget?.endDate || (() => {
       const date = new Date();
@@ -40,26 +40,46 @@ export default function AddBudgetModal({ open, onOpenChange, editingBudget = nul
     })()
   });
 
-  const handleSubmit = (e) => {
+  // Update form data when editingBudget changes
+  useState(() => {
+    if (editingBudget) {
+      setFormData({
+        category: editingBudget.category || "",
+        budgetLimit: editingBudget.budgetLimit || "",
+        startDate: editingBudget.startDate || new Date().toISOString().split('T')[0],
+        endDate: editingBudget.endDate || (() => {
+          const date = new Date();
+          date.setMonth(date.getMonth() + 1);
+          return date.toISOString().split('T')[0];
+        })()
+      });
+    }
+  }, [editingBudget]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Budget Form Data:", {
-      ...formData,
-      isEditing: !!editingBudget,
-      originalBudget: editingBudget
-    });
-    
-    // Reset form
-    setFormData({
-      category: "",
-      budgetLimit: "",
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: (() => {
-        const date = new Date();
-        date.setMonth(date.getMonth() + 1);
-        return date.toISOString().split('T')[0];
-      })()
-    });
-    onOpenChange(false);
+    try {
+      if (editingBudget) {
+        await onSave(editingBudget.id, formData);
+      } else {
+        await onSave(formData);
+      }
+      
+      // Reset form
+      setFormData({
+        category: "",
+        budgetLimit: "",
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: (() => {
+          const date = new Date();
+          date.setMonth(date.getMonth() + 1);
+          return date.toISOString().split('T')[0];
+        })()
+      });
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error saving budget:', error);
+    }
   };
 
   const handleInputChange = (field, value) => {

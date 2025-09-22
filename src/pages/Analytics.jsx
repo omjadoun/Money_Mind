@@ -11,6 +11,7 @@ import {
 import { CalendarIcon, TrendingDown, TrendingUp, DollarSign, PieChart } from "lucide-react";
 import { PieChart as RechartsPieChart, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Pie } from "recharts";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import { useTransactions } from "@/contexts/TransactionContext";
 
 const expenseBreakdown = [
   { name: "Food & Dining", value: 1250, color: "hsl(var(--primary))" },
@@ -45,10 +46,53 @@ const chartConfig = {
 };
 
 export default function Analytics() {
-  const totalIncome = monthlyTrend.reduce((acc, curr) => acc + curr.income, 0);
-  const totalExpenses = monthlyTrend.reduce((acc, curr) => acc + curr.expenses, 0);
+  const { transactions, getFinancialMetrics, getSpendingByCategory } = useTransactions();
+  
+  const metrics = getFinancialMetrics();
+  const { totalIncome, totalExpenses, savingsRate } = metrics;
   const totalSavings = totalIncome - totalExpenses;
-  const savingsRate = ((totalSavings / totalIncome) * 100).toFixed(1);
+  
+  // Get expense breakdown with colors
+  const expenseData = getSpendingByCategory().map((item, index) => ({
+    ...item,
+    color: [
+      "hsl(var(--primary))",
+      "hsl(var(--accent))", 
+      "hsl(var(--success))",
+      "hsl(var(--warning))",
+      "hsl(var(--destructive))",
+      "hsl(var(--muted-foreground))"
+    ][index % 6]
+  }));
+
+  // Generate monthly trend from transactions (last 6 months)
+  const monthlyTrend = [];
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date();
+    date.setMonth(date.getMonth() - i);
+    const monthName = date.toLocaleDateString('en', { month: 'short' });
+    
+    const monthTransactions = transactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      return transactionDate.getMonth() === date.getMonth() && 
+             transactionDate.getFullYear() === date.getFullYear();
+    });
+    
+    const income = monthTransactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+      
+    const expenses = monthTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    monthlyTrend.push({
+      month: monthName,
+      income,
+      expenses,
+      savings: income - expenses
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -122,7 +166,7 @@ export default function Analytics() {
             <PieChart className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-accent">{savingsRate}%</div>
+            <div className="text-2xl font-bold text-accent">{savingsRate.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
               of total income saved
             </p>
@@ -141,13 +185,13 @@ export default function Analytics() {
             <ChartContainer config={{}} className="h-[300px]">
               <RechartsPieChart width={400} height={300}>
                 <Pie
-                  data={expenseBreakdown}
+                  data={expenseData}
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
                   dataKey="value"
                 >
-                  {expenseBreakdown.map((entry, index) => (
+                  {expenseData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -172,16 +216,22 @@ export default function Analytics() {
             
             {/* Legend */}
             <div className="grid grid-cols-2 gap-2 mt-4">
-              {expenseBreakdown.map((item, index) => (
-                <div key={index} className="flex items-center gap-2 text-sm">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="truncate">{item.name}</span>
-                  <span className="text-muted-foreground ml-auto">${item.value}</span>
-                </div>
-              ))}
+              {expenseData.length === 0 ? (
+                <p className="col-span-2 text-center text-muted-foreground py-4">
+                  No expense data available
+                </p>
+              ) : (
+                expenseData.map((item, index) => (
+                  <div key={index} className="flex items-center gap-2 text-sm">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="truncate">{item.name}</span>
+                    <span className="text-muted-foreground ml-auto">${item.value.toFixed(0)}</span>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

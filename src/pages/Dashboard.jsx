@@ -16,6 +16,7 @@ import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tool
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTransactions } from "@/contexts/TransactionContext";
 import { useState } from "react";
 import heroImage from "@/assets/dashboard-hero.jpg";
 import AddTransactionModal from "@/components/modals/AddTransactionModal";
@@ -51,11 +52,44 @@ const chartConfig = {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { transactions, getFinancialMetrics, getSpendingByCategory } = useTransactions();
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
-  const totalIncome = 5300;
-  const totalExpenses = 3900;
-  const netSavings = totalIncome - totalExpenses;
+  
+  const metrics = getFinancialMetrics();
+  const { totalIncome, totalExpenses, netSavings, savingsRate } = metrics;
+  const spendingByCategory = getSpendingByCategory();
+  
+  // Get recent transactions (last 5)
+  const recentTransactions = transactions.slice(0, 5).map(t => ({
+    id: t.id,
+    description: t.description,
+    amount: t.type === 'income' ? t.amount : -t.amount,
+    category: t.category,
+    date: new Date(t.date).toLocaleDateString(),
+    type: t.type
+  }));
+
+  // Calculate budget usage (example categories with limits)
+  const budgetCategories = [
+    { name: "Food & Dining", budget: 1000 },
+    { name: "Transportation", budget: 500 },
+    { name: "Shopping", budget: 800 },
+    { name: "Entertainment", budget: 400 },
+  ];
+
+  const categoriesWithSpending = budgetCategories.map(budget => {
+    const spending = spendingByCategory.find(s => s.name === budget.name);
+    return {
+      ...budget,
+      spent: spending ? spending.value : 0,
+      color: "bg-primary"
+    };
+  });
+
+  const totalBudget = budgetCategories.reduce((sum, cat) => sum + cat.budget, 0);
+  const totalSpent = categoriesWithSpending.reduce((sum, cat) => sum + cat.spent, 0);
+  const budgetUsedPercentage = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
 
   return (
     <div className="space-y-6">
@@ -94,7 +128,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold text-success">${totalIncome.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-success">+12%</span> from last month
+              This month's income
             </p>
           </CardContent>
         </Card>
@@ -107,7 +141,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold text-destructive">${totalExpenses.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-destructive">+8%</span> from last month
+              This month's expenses
             </p>
           </CardContent>
         </Card>
@@ -118,9 +152,11 @@ export default function Dashboard() {
             <TrendingUp className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">${netSavings.toLocaleString()}</div>
+            <div className={`text-2xl font-bold ${netSavings >= 0 ? 'text-success' : 'text-destructive'}`}>
+              ${netSavings.toLocaleString()}
+            </div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-success">+18%</span> from last month
+              Savings rate: {savingsRate.toFixed(1)}%
             </p>
           </CardContent>
         </Card>
@@ -131,9 +167,11 @@ export default function Dashboard() {
             <PieChart className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-accent">73%</div>
+            <div className={`text-2xl font-bold ${budgetUsedPercentage > 90 ? 'text-destructive' : budgetUsedPercentage > 75 ? 'text-warning' : 'text-accent'}`}>
+              {budgetUsedPercentage}%
+            </div>
             <p className="text-xs text-muted-foreground">
-              $2,240 of $3,075 budget
+              ${totalSpent.toLocaleString()} of ${totalBudget.toLocaleString()} budget
             </p>
           </CardContent>
         </Card>
@@ -179,8 +217,8 @@ export default function Dashboard() {
             <CardDescription>Current month spending by category</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {budgetCategories.map((category) => {
-              const percentage = (category.spent / category.budget) * 100;
+            {categoriesWithSpending.map((category) => {
+              const percentage = category.budget > 0 ? (category.spent / category.budget) * 100 : 0;
               const isOverBudget = percentage > 100;
               
               return (
@@ -188,7 +226,7 @@ export default function Dashboard() {
                   <div className="flex justify-between text-sm">
                     <span className="font-medium">{category.name}</span>
                     <span className={isOverBudget ? "text-destructive" : "text-muted-foreground"}>
-                      ${category.spent} / ${category.budget}
+                      ${category.spent.toFixed(0)} / ${category.budget}
                     </span>
                   </div>
                   <Progress 
@@ -197,7 +235,7 @@ export default function Dashboard() {
                   />
                   {isOverBudget && (
                     <p className="text-xs text-destructive">
-                      Over budget by ${category.spent - category.budget}
+                      Over budget by ${(category.spent - category.budget).toFixed(0)}
                     </p>
                   )}
                 </div>
@@ -215,36 +253,37 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {[
-              { id: 1, description: "Grocery Shopping", amount: -85.99, category: "Food", date: "2 hours ago" },
-              { id: 2, description: "Salary Deposit", amount: 2500.00, category: "Income", date: "1 day ago" },
-              { id: 3, description: "Electric Bill", amount: -120.50, category: "Utilities", date: "2 days ago" },
-              { id: 4, description: "Coffee Shop", amount: -12.75, category: "Food", date: "3 days ago" },
-              { id: 5, description: "Freelance Work", amount: 800.00, category: "Income", date: "4 days ago" },
-            ].map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between p-3 rounded-lg border">
-                <div className="flex items-center gap-4">
-                  <div className={`p-2 rounded-full ${
-                    transaction.amount > 0 ? "bg-success/20" : "bg-destructive/20"
-                  }`}>
-                    {transaction.amount > 0 ? (
-                      <TrendingUp className="h-4 w-4 text-success" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4 text-destructive" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-medium">{transaction.description}</p>
-                    <p className="text-sm text-muted-foreground">{transaction.category} • {transaction.date}</p>
-                  </div>
-                </div>
-                <div className={`text-lg font-semibold ${
-                  transaction.amount > 0 ? "text-success" : "text-destructive"
-                }`}>
-                  {transaction.amount > 0 ? "+" : ""}${Math.abs(transaction.amount).toFixed(2)}
-                </div>
+            {recentTransactions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No transactions yet.</p>
+                <p className="text-sm">Add your first transaction to see it here!</p>
               </div>
-            ))}
+            ) : (
+              recentTransactions.map((transaction) => (
+                <div key={transaction.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-2 rounded-full ${
+                      transaction.amount > 0 ? "bg-success/20" : "bg-destructive/20"
+                    }`}>
+                      {transaction.amount > 0 ? (
+                        <TrendingUp className="h-4 w-4 text-success" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4 text-destructive" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium">{transaction.description}</p>
+                      <p className="text-sm text-muted-foreground">{transaction.category} • {transaction.date}</p>
+                    </div>
+                  </div>
+                  <div className={`text-lg font-semibold ${
+                    transaction.amount > 0 ? "text-success" : "text-destructive"
+                  }`}>
+                    {transaction.amount > 0 ? "+" : ""}${Math.abs(transaction.amount).toFixed(2)}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

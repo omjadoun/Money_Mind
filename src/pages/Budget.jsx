@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import AddBudgetModal from "@/components/modals/AddBudgetModal";
+import { useBudgets } from "@/contexts/BudgetContext";
 import { 
   Plus, 
   Edit, 
@@ -16,71 +17,32 @@ import {
   DollarSign
 } from "lucide-react";
 
-const budgetCategories = [
-  {
-    id: "1",
-    name: "Food & Dining",
-    budgetAmount: 1000,
-    spentAmount: 850,
-    period: "monthly",
-    color: "bg-primary"
-  },
-  {
-    id: "2", 
-    name: "Transportation",
-    budgetAmount: 500,
-    spentAmount: 420,
-    period: "monthly",
-    color: "bg-accent"
-  },
-  {
-    id: "3",
-    name: "Shopping",
-    budgetAmount: 800,
-    spentAmount: 1020,
-    period: "monthly", 
-    color: "bg-success"
-  },
-  {
-    id: "4",
-    name: "Entertainment",
-    budgetAmount: 400,
-    spentAmount: 290,
-    period: "monthly",
-    color: "bg-warning"
-  },
-  {
-    id: "5",
-    name: "Bills & Utilities", 
-    budgetAmount: 1200,
-    spentAmount: 1150,
-    period: "monthly",
-    color: "bg-destructive"
-  },
-  {
-    id: "6",
-    name: "Healthcare",
-    budgetAmount: 300,
-    spentAmount: 180,
-    period: "monthly",
-    color: "bg-muted-foreground"
-  }
-];
+const getCategoryColor = (index) => {
+  const colors = [
+    "bg-primary",
+    "bg-accent", 
+    "bg-success",
+    "bg-warning",
+    "bg-destructive",
+    "bg-muted-foreground"
+  ];
+  return colors[index % colors.length];
+};
 
 export default function Budget() {
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [editingBudget, setEditingBudget] = useState(null);
+  const { addBudget, updateBudget, deleteBudget, getBudgetMetrics, loading } = useBudgets();
 
-  const totalBudget = budgetCategories.reduce((acc, cat) => acc + cat.budgetAmount, 0);
-  const totalSpent = budgetCategories.reduce((acc, cat) => acc + cat.spentAmount, 0);
-  const remainingBudget = totalBudget - totalSpent;
-  const budgetUsedPercentage = (totalSpent / totalBudget) * 100;
-
-  const overBudgetCategories = budgetCategories.filter(cat => cat.spentAmount > cat.budgetAmount);
-  const nearLimitCategories = budgetCategories.filter(cat => {
-    const percentage = (cat.spentAmount / cat.budgetAmount) * 100;
-    return percentage >= 80 && percentage <= 100;
-  });
+  const {
+    totalBudget,
+    totalSpent,
+    remainingBudget,
+    budgetUsedPercentage,
+    overBudgetCategories,
+    nearLimitCategories,
+    budgetCategories
+  } = getBudgetMetrics();
 
   const handleEditBudget = (budget) => {
     setEditingBudget(budget);
@@ -91,6 +53,24 @@ export default function Budget() {
     setEditingBudget(null);
     setShowBudgetModal(true);
   };
+
+  const handleSaveBudget = async (budgetData, budgetId = null) => {
+    if (budgetId) {
+      await updateBudget(budgetId, budgetData);
+    } else {
+      await addBudget(budgetData);
+    }
+  };
+
+  const handleDeleteBudget = async (budgetId) => {
+    if (confirm('Are you sure you want to delete this budget?')) {
+      await deleteBudget(budgetId);
+    }
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64">Loading...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -228,65 +208,82 @@ export default function Budget() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-6">
-            {budgetCategories.map((category) => {
-              const percentage = (category.spentAmount / category.budgetAmount) * 100;
-              const isOverBudget = percentage > 100;
-              const isNearLimit = percentage >= 80 && percentage <= 100;
+            {budgetCategories.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No budgets created yet</p>
+                <p className="text-sm">Click "Add Budget" to get started</p>
+              </div>
+            ) : (
+              budgetCategories.map((category, index) => {
+                const spent = parseFloat(category.spentAmount || 0);
+                const budget = parseFloat(category.budgetLimit || 0);
+                const percentage = budget > 0 ? (spent / budget) * 100 : 0;
+                const isOverBudget = percentage > 100;
+                const isNearLimit = percentage >= 80 && percentage <= 100;
 
-              return (
-                <div key={category.id} className="space-y-3 p-4 rounded-lg border bg-card/50 hover:bg-card transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-4 h-4 rounded-full ${category.color}`} />
-                      <div>
-                        <h3 className="font-medium">{category.name}</h3>
-                        <p className="text-sm text-muted-foreground">{category.period}</p>
+                return (
+                  <div key={category.id} className="space-y-3 p-4 rounded-lg border bg-card/50 hover:bg-card transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-4 h-4 rounded-full ${getCategoryColor(index)}`} />
+                        <div>
+                          <h3 className="font-medium">{category.category}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(category.startDate).toLocaleDateString()} - {new Date(category.endDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isOverBudget && (
+                          <Badge variant="destructive" className="text-xs">Over Budget</Badge>
+                        )}
+                        {isNearLimit && (
+                          <Badge variant="secondary" className="text-xs">Near Limit</Badge>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditBudget(category)}
+                          className="h-8 w-8"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => handleDeleteBudget(category.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {isOverBudget && (
-                        <Badge variant="destructive" className="text-xs">Over Budget</Badge>
-                      )}
-                      {isNearLimit && (
-                        <Badge variant="secondary" className="text-xs">Near Limit</Badge>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditBudget(category)}
-                        className="h-8 w-8"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>
-                        ${category.spentAmount.toLocaleString()} spent
-                      </span>
-                      <span className="text-muted-foreground">
-                        ${category.budgetAmount.toLocaleString()} budget
-                      </span>
-                    </div>
-                    <Progress
-                      value={Math.min(percentage, 100)}
-                      className={`h-2 ${isOverBudget ? 'bg-destructive/20' : ''}`}
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{percentage.toFixed(0)}% used</span>
-                      <span>
-                        ${(category.budgetAmount - category.spentAmount).toLocaleString()} remaining
-                      </span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>
+                          ${spent.toLocaleString()} spent
+                        </span>
+                        <span className="text-muted-foreground">
+                          ${budget.toLocaleString()} budget
+                        </span>
+                      </div>
+                      <Progress
+                        value={Math.min(percentage, 100)}
+                        className={`h-2 ${isOverBudget ? 'bg-destructive/20' : ''}`}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{percentage.toFixed(0)}% used</span>
+                        <span>
+                          ${Math.max(0, budget - spent).toLocaleString()} remaining
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </CardContent>
       </Card>
@@ -296,6 +293,7 @@ export default function Budget() {
         open={showBudgetModal} 
         onOpenChange={setShowBudgetModal}
         editingBudget={editingBudget}
+        onSave={handleSaveBudget}
       />
     </div>
   );
