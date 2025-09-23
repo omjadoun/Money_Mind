@@ -12,31 +12,8 @@ import { CalendarIcon, TrendingDown, TrendingUp, DollarSign, PieChart } from "lu
 import { PieChart as RechartsPieChart, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Pie } from "recharts";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { useTransactions } from "@/contexts/TransactionContext";
+import { useState } from "react";
 
-const expenseBreakdown = [
-  { name: "Food & Dining", value: 1250, color: "hsl(var(--primary))" },
-  { name: "Transportation", value: 890, color: "hsl(var(--accent))" },
-  { name: "Shopping", value: 680, color: "hsl(var(--success))" },
-  { name: "Entertainment", value: 420, color: "hsl(var(--warning))" },
-  { name: "Bills & Utilities", value: 1200, color: "hsl(var(--destructive))" },
-  { name: "Healthcare", value: 280, color: "hsl(var(--muted-foreground))" },
-];
-
-const monthlyTrend = [
-  { month: "Jan", income: 4500, expenses: 3200, savings: 1300 },
-  { month: "Feb", income: 4800, expenses: 3400, savings: 1400 },
-  { month: "Mar", income: 4200, expenses: 3800, savings: 400 },
-  { month: "Apr", income: 5100, expenses: 3600, savings: 1500 },
-  { month: "May", income: 4900, expenses: 4200, savings: 700 },
-  { month: "Jun", income: 5300, expenses: 3900, savings: 1400 },
-];
-
-const weeklySpending = [
-  { week: "Week 1", amount: 520 },
-  { week: "Week 2", amount: 890 },
-  { week: "Week 3", amount: 640 },
-  { week: "Week 4", amount: 750 },
-];
 
 const chartConfig = {
   income: { label: "Income", color: "hsl(var(--success))" },
@@ -47,13 +24,74 @@ const chartConfig = {
 
 export default function Analytics() {
   const { transactions, getFinancialMetrics, getSpendingByCategory } = useTransactions();
+  const [dateRange, setDateRange] = useState("30days");
   
-  const metrics = getFinancialMetrics();
-  const { totalIncome, totalExpenses, savingsRate } = metrics;
+  // Filter transactions based on date range
+  const getFilteredTransactions = () => {
+    const now = new Date();
+    let startDate = new Date();
+    
+    switch(dateRange) {
+      case "7days":
+        startDate = new Date();
+        startDate.setDate(now.getDate() - 7);
+        break;
+      case "30days":
+        startDate = new Date();
+        startDate.setDate(now.getDate() - 30);
+        break;
+      case "thismonth":
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      default:
+        startDate = new Date();
+        startDate.setDate(now.getDate() - 30);
+    }
+    
+    return transactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999); // End of today
+      return transactionDate >= startDate && transactionDate <= today;
+    });
+  };
+
+  const filteredTransactions = getFilteredTransactions();
+  
+  // Calculate metrics from filtered transactions
+  const totalIncome = filteredTransactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+    
+  const totalExpenses = filteredTransactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+    
   const totalSavings = totalIncome - totalExpenses;
+  const savingsRate = totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0;
   
-  // Get expense breakdown with colors
-  const expenseData = getSpendingByCategory().map((item, index) => ({
+  // Get expense breakdown with colors from filtered transactions
+  const getSpendingByCategoryFiltered = () => {
+    const expenseTransactions = filteredTransactions.filter(t => t.type === 'expense');
+    const categoryTotals = {};
+    
+    expenseTransactions.forEach(transaction => {
+      const category = transaction.category || 'Other';
+      const amount = parseFloat(transaction.amount || 0);
+      if (categoryTotals[category]) {
+        categoryTotals[category] += amount;
+      } else {
+        categoryTotals[category] = amount;
+      }
+    });
+    
+    return Object.entries(categoryTotals).map(([name, value]) => ({
+      name,
+      value: Math.round(value)
+    }));
+  };
+  
+  const expenseData = getSpendingByCategoryFiltered().map((item, index) => ({
     ...item,
     color: [
       "hsl(var(--primary))",
@@ -65,34 +103,109 @@ export default function Analytics() {
     ][index % 6]
   }));
 
-  // Generate monthly trend from transactions (last 6 months)
-  const monthlyTrend = [];
-  for (let i = 5; i >= 0; i--) {
-    const date = new Date();
-    date.setMonth(date.getMonth() - i);
-    const monthName = date.toLocaleDateString('en', { month: 'short' });
+  // Generate monthly trend from filtered transactions
+  const getMonthlyTrend = () => {
+    const months = [];
+    const now = new Date();
     
-    const monthTransactions = transactions.filter(t => {
-      const transactionDate = new Date(t.date);
-      return transactionDate.getMonth() === date.getMonth() && 
-             transactionDate.getFullYear() === date.getFullYear();
-    });
+    // Get last 6 months or appropriate range based on filter
+    const monthsToShow = dateRange === "7days" ? 1 : dateRange === "thismonth" ? 1 : 6;
     
-    const income = monthTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
+    for (let i = monthsToShow - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(now.getMonth() - i);
+      const monthName = date.toLocaleDateString('en', { month: 'short' });
       
-    const expenses = monthTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+      const monthTransactions = filteredTransactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate.getMonth() === date.getMonth() && 
+               transactionDate.getFullYear() === date.getFullYear();
+      });
+      
+      const income = monthTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+        
+      const expenses = monthTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+      
+      months.push({
+        month: monthName,
+        income,
+        expenses,
+        savings: income - expenses
+      });
+    }
     
-    monthlyTrend.push({
-      month: monthName,
-      income,
-      expenses,
-      savings: income - expenses
-    });
-  }
+    return months;
+  };
+  
+  const monthlyTrend = getMonthlyTrend();
+
+  // Generate weekly spending data from actual transactions  
+  const getWeeklySpendingData = () => {
+    const weeks = [];
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    
+    // Calculate weeks in current month
+    const weekCount = Math.ceil(endOfMonth.getDate() / 7);
+    
+    for (let week = 1; week <= weekCount; week++) {
+      const weekStart = new Date(startOfMonth);
+      weekStart.setDate((week - 1) * 7 + 1);
+      const weekEnd = new Date(startOfMonth);
+      weekEnd.setDate(Math.min(week * 7, endOfMonth.getDate()));
+      
+      const weekTransactions = filteredTransactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate >= weekStart && 
+               transactionDate <= weekEnd && 
+               t.type === 'expense';
+      });
+      
+      const weekTotal = weekTransactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+      
+      weeks.push({
+        week: `Week ${week}`,
+        amount: Math.round(weekTotal)
+      });
+    }
+    
+    return weeks;
+  };
+
+  const weeklySpending = getWeeklySpendingData();
+
+  // Export functionality
+  const exportAnalyticsData = () => {
+    const csvData = [
+      ['Metric', 'Value'],
+      ['Total Income', totalIncome.toFixed(2)],
+      ['Total Expenses', totalExpenses.toFixed(2)],
+      ['Net Savings', totalSavings.toFixed(2)],
+      ['Savings Rate', `${savingsRate.toFixed(1)}%`],
+      [''],
+      ['Monthly Trend', ''],
+      ['Month', 'Income', 'Expenses', 'Savings'],
+      ...monthlyTrend.map(m => [m.month, m.income.toFixed(2), m.expenses.toFixed(2), m.savings.toFixed(2)]),
+      [''],
+      ['Expense Breakdown', ''],
+      ['Category', 'Amount'],
+      ...expenseData.map(e => [e.name, e.value.toFixed(2)])
+    ];
+    
+    const csvContent = csvData.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics-report-${dateRange}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -103,7 +216,7 @@ export default function Analytics() {
           <p className="text-muted-foreground">Detailed insights into your spending patterns</p>
         </div>
         <div className="flex gap-2">
-          <Select defaultValue="30days">
+          <Select value={dateRange} onValueChange={setDateRange}>
             <SelectTrigger className="w-[180px]">
               <CalendarIcon className="h-4 w-4 mr-2" />
               <SelectValue />
@@ -112,10 +225,9 @@ export default function Analytics() {
               <SelectItem value="7days">Last 7 Days</SelectItem>
               <SelectItem value="30days">Last 30 Days</SelectItem>
               <SelectItem value="thismonth">This Month</SelectItem>
-              <SelectItem value="custom">Custom Range</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline">Export Report</Button>
+          <Button variant="outline" onClick={exportAnalyticsData}>Export Report</Button>
         </div>
       </div>
 
@@ -244,33 +356,35 @@ export default function Analytics() {
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[300px]">
-              <LineChart data={monthlyTrend}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip content={<ChartTooltipContent />} />
-                <Line 
-                  type="monotone" 
-                  dataKey="income" 
-                  stroke="var(--color-income)" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="expenses" 
-                  stroke="var(--color-expenses)" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="savings" 
-                  stroke="var(--color-savings)" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-              </LineChart>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthlyTrend} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip content={<ChartTooltipContent />} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="income" 
+                    stroke="var(--color-income)" 
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="expenses" 
+                    stroke="var(--color-expenses)" 
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="savings" 
+                    stroke="var(--color-savings)" 
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </ChartContainer>
           </CardContent>
         </Card>
@@ -282,21 +396,23 @@ export default function Analytics() {
           <CardTitle>Weekly Spending Pattern</CardTitle>
           <CardDescription>Your spending habits throughout the month</CardDescription>
         </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig} className="h-[250px]">
-            <BarChart data={weeklySpending}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="week" />
-              <YAxis />
-              <Tooltip content={<ChartTooltipContent />} />
-              <Bar 
-                dataKey="amount" 
-                fill="var(--color-amount)" 
-                radius={[4, 4, 0, 0]}
-              />
-            </BarChart>
-          </ChartContainer>
-        </CardContent>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={weeklySpending} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="week" />
+                  <YAxis />
+                  <Tooltip content={<ChartTooltipContent />} />
+                  <Bar 
+                    dataKey="amount" 
+                    fill="var(--color-amount)" 
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
       </Card>
 
       {/* Insights Cards */}

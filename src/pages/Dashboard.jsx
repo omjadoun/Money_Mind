@@ -17,26 +17,11 @@ import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTransactions } from "@/contexts/TransactionContext";
+import { useBudgets } from "@/contexts/BudgetContext";
 import { useState } from "react";
 import heroImage from "@/assets/dashboard-hero.jpg";
 import AddTransactionModal from "@/components/modals/AddTransactionModal";
 import UploadReceiptModal from "@/components/modals/UploadReceiptModal";
-
-const monthlyData = [
-  { month: "Jan", income: 4500, expenses: 3200 },
-  { month: "Feb", income: 4800, expenses: 3400 },
-  { month: "Mar", income: 4200, expenses: 3800 },
-  { month: "Apr", income: 5100, expenses: 3600 },
-  { month: "May", income: 4900, expenses: 4200 },
-  { month: "Jun", income: 5300, expenses: 3900 },
-];
-
-const budgetCategories = [
-  { name: "Food & Dining", spent: 850, budget: 1000, color: "bg-primary" },
-  { name: "Transportation", spent: 420, budget: 500, color: "bg-accent" },
-  { name: "Shopping", spent: 680, budget: 800, color: "bg-success" },
-  { name: "Entertainment", spent: 290, budget: 400, color: "bg-warning" },
-];
 
 const chartConfig = {
   income: {
@@ -53,12 +38,14 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { transactions, getFinancialMetrics, getSpendingByCategory } = useTransactions();
+  const { getBudgetMetrics } = useBudgets();
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   
   const metrics = getFinancialMetrics();
   const { totalIncome, totalExpenses, netSavings, savingsRate } = metrics;
-  const spendingByCategory = getSpendingByCategory();
+  const budgetMetrics = getBudgetMetrics();
+  const { budgetCategories, budgetUsedPercentage, totalBudget, totalSpent } = budgetMetrics;
   
   // Get recent transactions (last 5)
   const recentTransactions = transactions.slice(0, 5).map(t => ({
@@ -70,26 +57,42 @@ export default function Dashboard() {
     type: t.type
   }));
 
-  // Calculate budget usage (example categories with limits)
-  const budgetCategories = [
-    { name: "Food & Dining", budget: 1000 },
-    { name: "Transportation", budget: 500 },
-    { name: "Shopping", budget: 800 },
-    { name: "Entertainment", budget: 400 },
-  ];
+  // Generate monthly data from actual transactions (last 6 months)
+  const generateMonthlyData = () => {
+    const monthlyData = [];
+    const now = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const month = date.toLocaleDateString('en-US', { month: 'short' });
+      const year = date.getFullYear();
+      const monthNum = date.getMonth();
+      
+      const monthTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate.getMonth() === monthNum && 
+               transactionDate.getFullYear() === year;
+      });
+      
+      const income = monthTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+        
+      const expenses = monthTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+      
+      monthlyData.push({
+        month,
+        income: Math.round(income),
+        expenses: Math.round(expenses)
+      });
+    }
+    
+    return monthlyData;
+  };
 
-  const categoriesWithSpending = budgetCategories.map(budget => {
-    const spending = spendingByCategory.find(s => s.name === budget.name);
-    return {
-      ...budget,
-      spent: spending ? spending.value : 0,
-      color: "bg-primary"
-    };
-  });
-
-  const totalBudget = budgetCategories.reduce((sum, cat) => sum + cat.budget, 0);
-  const totalSpent = categoriesWithSpending.reduce((sum, cat) => sum + cat.spent, 0);
-  const budgetUsedPercentage = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
+  const monthlyData = generateMonthlyData();
 
   return (
     <div className="space-y-6">
@@ -186,26 +189,28 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[300px]">
-              <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip content={<ChartTooltipContent />} />
-                <Line 
-                  type="monotone" 
-                  dataKey="income" 
-                  stroke="var(--color-income)" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="expenses" 
-                  stroke="var(--color-expenses)" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-              </LineChart>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip content={<ChartTooltipContent />} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="income" 
+                    stroke="var(--color-income)" 
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="expenses" 
+                    stroke="var(--color-expenses)" 
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </ChartContainer>
           </CardContent>
         </Card>
@@ -217,30 +222,39 @@ export default function Dashboard() {
             <CardDescription>Current month spending by category</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {categoriesWithSpending.map((category) => {
-              const percentage = category.budget > 0 ? (category.spent / category.budget) * 100 : 0;
-              const isOverBudget = percentage > 100;
-              
-              return (
-                <div key={category.name} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium">{category.name}</span>
-                    <span className={isOverBudget ? "text-destructive" : "text-muted-foreground"}>
-                      ${category.spent.toFixed(0)} / ${category.budget}
-                    </span>
+            {budgetCategories.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No budgets set yet.</p>
+                <p className="text-sm">Create budgets to track your spending!</p>
+              </div>
+            ) : (
+              budgetCategories.map((budget) => {
+                const spent = parseFloat(budget.spentAmount || 0);
+                const limit = parseFloat(budget.budget_limit || 0);
+                const percentage = limit > 0 ? (spent / limit) * 100 : 0;
+                const isOverBudget = percentage > 100;
+                
+                return (
+                  <div key={budget.id} className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">{budget.category}</span>
+                      <span className={isOverBudget ? "text-destructive" : "text-muted-foreground"}>
+                        ${spent.toFixed(0)} / ${limit.toFixed(0)}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={Math.min(percentage, 100)} 
+                      className="h-2"
+                    />
+                    {isOverBudget && (
+                      <p className="text-xs text-destructive">
+                        Over budget by ${(spent - limit).toFixed(0)}
+                      </p>
+                    )}
                   </div>
-                  <Progress 
-                    value={Math.min(percentage, 100)} 
-                    className="h-2"
-                  />
-                  {isOverBudget && (
-                    <p className="text-xs text-destructive">
-                      Over budget by ${(category.spent - category.budget).toFixed(0)}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </CardContent>
         </Card>
       </div>

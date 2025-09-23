@@ -107,7 +107,7 @@ export default function UploadReceiptModal({ open, onOpenChange }) {
             {/* File Preview */}
             {selectedFile && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/50">
+                <div className="flex items-center justify-between p-4 rounded-lg border bg-accent/20 dark:bg-muted/50">
                   <div className="flex items-center gap-3">
                     <FileText className="h-8 w-8 text-primary" />
                     <div>

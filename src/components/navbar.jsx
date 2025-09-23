@@ -23,7 +23,7 @@ export function Navbar() {
   }
 
   return (
-    <div className="border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+    <div className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-16 items-center px-6 gap-4">
         <div className="flex-1">
           <h1 className="text-xl font-semibold bg-gradient-primary bg-clip-text text-transparent">

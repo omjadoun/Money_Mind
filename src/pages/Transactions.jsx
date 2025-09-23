@@ -42,7 +42,7 @@ export default function Transactions() {
     category: t.category,
     date: t.date,
     type: t.type,
-    account: t.payment_method,
+    account: t.paymentMethod,
     status: "completed"
   }));
 
@@ -71,6 +71,29 @@ export default function Transactions() {
         console.error("Failed to delete transaction:", error);
       }
     }
+  };
+
+  const exportTransactions = () => {
+    const csvData = [
+      ['Date', 'Description', 'Category', 'Type', 'Amount', 'Payment Method'],
+      ...filteredTransactions.map(t => [
+        new Date(t.date).toLocaleDateString(),
+        t.description,
+        t.category,
+        t.type,
+        Math.abs(t.amount).toFixed(2),
+        t.account
+      ])
+    ];
+    
+    const csvContent = csvData.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transactions-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const getStatusBadge = (status) => {
@@ -140,7 +163,7 @@ export default function Transactions() {
                   <SelectItem value="expense">Expense</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2" onClick={exportTransactions}>
                 <Download className="h-4 w-4" />
                 Export
               </Button>
