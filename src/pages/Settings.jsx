@@ -29,7 +29,8 @@ import {
 
 export default function Settings() {
   return (
-    <div className="space-y-6 max-w-4xl">
+    // Adding mx-auto to center & keep equal spacing
+    <div className="space-y-6 w-full max-w-5xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold">Settings</h1>
         <p className="text-muted-foreground">Manage your account preferences and settings</p>
@@ -301,8 +302,6 @@ export default function Settings() {
           </div>
         </CardContent>
       </Card>
-
-     
 
       {/* Danger Zone */}
       <Card className="shadow-card border-destructive">

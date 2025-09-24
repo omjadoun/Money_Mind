@@ -1,3 +1,4 @@
+// src/App.jsx
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +10,7 @@ import { TransactionProvider } from "@/contexts/TransactionContext";
 import { BudgetProvider } from "@/contexts/BudgetContext";
 import { Layout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRouter";
+
 import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions"; 
 import Analytics from "./pages/Analytics";
@@ -32,21 +34,24 @@ const App = () => (
               <BrowserRouter>
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
-                  <Route path="/*" element={
-                    <ProtectedRoute>
-                      <Layout>
-                        <Routes>
-                          <Route path="/" element={<Dashboard />} />
-                          <Route path="/transactions" element={<Transactions />} />
-                          <Route path="/analytics" element={<Analytics />} />
-                          <Route path="/budget" element={<Budget />} />
-                          <Route path="/settings" element={<Settings />} />
-                          <Route path="/premium" element={<Premium />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Routes>
-                      </Layout>
-                    </ProtectedRoute>
-                  } />
+                  <Route
+                    path="/*"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Routes>
+                            <Route path="/" element={<Dashboard />} />
+                            <Route path="/transactions" element={<Transactions />} />
+                            <Route path="/analytics" element={<Analytics />} />
+                            <Route path="/budget" element={<Budget />} />
+                            <Route path="/settings" element={<Settings />} />
+                            <Route path="/premium" element={<Premium />} />
+                            <Route path="*" element={<NotFound />} />
+                          </Routes>
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
                 </Routes>
               </BrowserRouter>
             </TooltipProvider>

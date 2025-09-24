@@ -1,4 +1,4 @@
-// Transactions.jsx
+//Transactions.jsx
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -110,6 +110,7 @@ export default function Transactions() {
   };
 
   return (
+    // ✅ Wrap the whole page in a centered, fixed-width container
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -195,58 +196,58 @@ export default function Transactions() {
               </div>
             ) : (
               filteredTransactions.map((transaction) => (
-              <div
-                key={transaction.id}
-                className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-full ${
-                    transaction.type === "income" ? "bg-success/20" : "bg-destructive/20"
-                  }`}>
-                    {transaction.type === "income" ? (
-                      <TrendingUp className="h-5 w-5 text-success" />
-                    ) : (
-                      <TrendingDown className="h-5 w-5 text-destructive" />
-                    )}
+                <div
+                  key={transaction.id}
+                  className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-full ${
+                      transaction.type === "income" ? "bg-success/20" : "bg-destructive/20"
+                    }`}>
+                      {transaction.type === "income" ? (
+                        <TrendingUp className="h-5 w-5 text-success" />
+                      ) : (
+                        <TrendingDown className="h-5 w-5 text-destructive" />
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-medium">{transaction.description}</p>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                        <span>{transaction.category}</span>
+                        <span>•</span>
+                        <span>{transaction.account}</span>
+                        <span>•</span>
+                        <span>{new Date(transaction.date).toLocaleDateString()}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <p className="font-medium">{transaction.description}</p>
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                      <span>{transaction.category}</span>
-                      <span>•</span>
-                      <span>{transaction.account}</span>
-                      <span>•</span>
-                      <span>{new Date(transaction.date).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-4">
+                    {getStatusBadge(transaction.status)}
+                    <div className={`text-lg font-semibold text-right ${
+                      transaction.type === "income" ? "text-success" : "text-destructive"
+                    }`}>
+                      {transaction.type === "income" ? "+" : "-"}${Math.abs(transaction.amount).toFixed(2)}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditTransaction(transaction)}
+                        className="h-8 w-8"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 hover:text-destructive"
+                        onClick={() => handleDeleteTransaction(transaction.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  {getStatusBadge(transaction.status)}
-                  <div className={`text-lg font-semibold text-right ${
-                    transaction.type === "income" ? "text-success" : "text-destructive"
-                  }`}>
-                    {transaction.type === "income" ? "+" : "-"}${Math.abs(transaction.amount).toFixed(2)}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditTransaction(transaction)}
-                      className="h-8 w-8"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 hover:text-destructive"
-                      onClick={() => handleDeleteTransaction(transaction.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
               ))
             )}
           </div>
