@@ -25,6 +25,7 @@ import {
   Receipt
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { formatINR } from "@/lib/utils";
 
 export default function Transactions() {
   const { transactions, deleteTransaction, categories, paymentMethods } = useTransactions();
@@ -226,7 +227,7 @@ export default function Transactions() {
                     <div className={`text-lg font-semibold text-right ${
                       transaction.type === "income" ? "text-success" : "text-destructive"
                     }`}>
-                      {transaction.type === "income" ? "+" : "-"}${Math.abs(transaction.amount).toFixed(2)}
+                      {transaction.type === "income" ? "+" : "-"}{formatINR(Math.abs(transaction.amount))}
                     </div>
                     <div className="flex gap-2">
                       <Button

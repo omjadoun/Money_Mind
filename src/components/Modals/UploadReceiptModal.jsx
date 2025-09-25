@@ -221,7 +221,7 @@ export default function UploadReceiptModal({ open, onOpenChange }) {
               <div className="grid gap-4">
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="amount">Amount ($)</Label>
+                    <Label htmlFor="amount">Amount (₹)</Label>
                     <Input
                       id="amount"
                       type="number"

@@ -23,7 +23,7 @@ export function extractAmountFromOcrText(ocrText) {
   // Strategy: search for lines containing keywords first, otherwise best numeric fallback
   const lines = ocrText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const keywordPattern = /(total|amount due|amount|grand total|balance due)/i;
-  const moneyPattern = /([\$£€])?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{2})|[0-9]+(?:\.[0-9]{2})?)/;
+  const moneyPattern = /([₹\$£€])?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{2})|[0-9]+(?:\.[0-9]{2})?)/;
 
   for (const line of lines) {
     if (keywordPattern.test(line)) {

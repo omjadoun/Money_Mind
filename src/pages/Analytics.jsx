@@ -13,6 +13,7 @@ import { PieChart as RechartsPieChart, Cell, ResponsiveContainer, LineChart, Lin
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { useTransactions } from "@/contexts/TransactionContext";
 import { useState } from "react";
+import { formatINR } from "@/lib/utils";
 
 
 const chartConfig = {
@@ -239,7 +240,7 @@ export default function Analytics() {
             <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">${totalIncome.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-success">{formatINR(totalIncome)}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-success">+8.2%</span> vs last period
             </p>
@@ -252,7 +253,7 @@ export default function Analytics() {
             <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">${totalExpenses.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-destructive">{formatINR(totalExpenses)}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-destructive">+3.1%</span> vs last period
             </p>
@@ -265,7 +266,7 @@ export default function Analytics() {
             <DollarSign className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">${totalSavings.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-primary">{formatINR(totalSavings)}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-success">+12.8%</span> vs last period
             </p>
@@ -315,7 +316,7 @@ export default function Analytics() {
                         <div className="bg-background border rounded-lg p-2 shadow-md">
                           <p className="font-medium">{data.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            ${data.value.toLocaleString()}
+                            {formatINR(data.value)}
                           </p>
                         </div>
                       );
@@ -340,7 +341,7 @@ export default function Analytics() {
                       style={{ backgroundColor: item.color }}
                     />
                     <span className="truncate">{item.name}</span>
-                    <span className="text-muted-foreground ml-auto">${item.value.toFixed(0)}</span>
+                    <span className="text-muted-foreground ml-auto">{formatINR(item.value)}</span>
                   </div>
                 ))
               )}
@@ -360,7 +361,7 @@ export default function Analytics() {
                 <LineChart data={monthlyTrend} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" label={{ value: "Month", position: "insideBottom", offset: -5, style: { fontWeight: "bold" } }}/>
-                  <YAxis label={{ value: "Amount ($)", angle: -90, position: "insideLeft", style: { fontWeight: "bold" } }}/>
+                  <YAxis label={{ value: "Amount (₹)", angle: -90, position: "insideLeft", style: { fontWeight: "bold" } }}/>
                   <Tooltip content={<ChartTooltipContent />} />
                   <Line 
                     type="monotone" 
@@ -454,8 +455,8 @@ export default function Analytics() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>Save $2,000</span>
-                <span className="text-success">$1,400 / $2,000</span>
+                <span>Save {formatINR(2000)}</span>
+                <span className="text-success">{formatINR(1400)} / {formatINR(2000)}</span>
               </div>
               <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                 <div className="bg-success h-2 rounded-full" style={{ width: "70%" }}></div>
@@ -464,17 +465,17 @@ export default function Analytics() {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Reduce Food Spending</span>
-                <span className="text-warning">$1,250 / $1,000</span>
+                <span className="text-warning">{formatINR(1250)} / {formatINR(1000)}</span>
               </div>
               <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                 <div className="bg-warning h-2 rounded-full" style={{ width: "100%" }}></div>
               </div>
-              <p className="text-xs text-destructive font-medium"> Over budget by $250 </p>
+              <p className="text-xs text-destructive font-medium"> Over budget by {formatINR(250)} </p>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Emergency Fund</span>
-                <span className="text-primary">$8,500 / $10,000</span>
+                <span className="text-primary">{formatINR(8500)} / {formatINR(10000)}</span>
               </div>
               <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                 <div className="bg-primary h-2 rounded-full" style={{ width: "85%" }}></div>

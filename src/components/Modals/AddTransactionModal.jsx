@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTransactions } from "@/contexts/TransactionContext";
-import { DollarSign } from "lucide-react";
+import { IndianRupee } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 
 export default function AddTransactionModal({ open, onOpenChange, editingTransaction = null }) {
@@ -98,7 +98,7 @@ export default function AddTransactionModal({ open, onOpenChange, editingTransac
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-primary" />
+            <IndianRupee className="h-5 w-5 text-primary" />
             {editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}
           </DialogTitle>
           <DialogDescription>
@@ -133,7 +133,7 @@ export default function AddTransactionModal({ open, onOpenChange, editingTransac
             <div className="grid gap-2">
               <Label htmlFor="amount">Amount (₹)</Label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="amount"
                   type="number"

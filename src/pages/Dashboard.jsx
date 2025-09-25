@@ -22,6 +22,7 @@ import { useState } from "react";
 import heroImage from "@/assets/dashboard-hero.jpg";
 import AddTransactionModal from "@/components/modals/AddTransactionModal";
 import UploadReceiptModal from "@/components/modals/UploadReceiptModal";
+import { formatINR } from "@/lib/utils";
 
 const chartConfig = {
   income: {
@@ -133,7 +134,7 @@ export default function Dashboard() {
             <ArrowUpRight className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">${totalIncome.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-success">{formatINR(totalIncome)}</div>
             <p className="text-xs text-muted-foreground">
               This month's income
             </p>
@@ -146,7 +147,7 @@ export default function Dashboard() {
             <ArrowDownRight className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">${totalExpenses.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-destructive">{formatINR(totalExpenses)}</div>
             <p className="text-xs text-muted-foreground">
               This month's expenses
             </p>
@@ -160,7 +161,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${netSavings >= 0 ? 'text-success' : 'text-destructive'}`}>
-              ${netSavings.toLocaleString()}
+              {formatINR(netSavings)}
             </div>
             <p className="text-xs text-muted-foreground">
               Savings rate: {savingsRate.toFixed(1)}%
@@ -175,10 +176,10 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${budgetUsedPercentage > 90 ? 'text-destructive' : budgetUsedPercentage > 75 ? 'text-warning' : 'text-accent'}`}>
-              {budgetUsedPercentage}%
+              {budgetUsedPercentage.toFixed(2)}%
             </div>
             <p className="text-xs text-muted-foreground">
-              ${totalSpent.toLocaleString()} of ${totalBudget.toLocaleString()} budget
+              {formatINR(totalSpent)} of {formatINR(totalBudget)} budget
             </p>
           </CardContent>
         </Card>
@@ -197,7 +198,7 @@ export default function Dashboard() {
                 <LineChart data={monthlyData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" label={{ value: "Month", position: "insideBottom", offset: -5, style: { fontWeight: "bold" } }}/>
-                  <YAxis label={{ value: "Amount ($)", angle: -90, position: "insideLeft", style: { fontWeight: "bold" } }}/>
+                  <YAxis label={{ value: "Amount (₹)", angle: -90, position: "insideLeft", style: { fontWeight: "bold" } }}/>
                   <Tooltip content={<ChartTooltipContent />} />
                   <Line 
                     type="monotone" 
@@ -243,7 +244,7 @@ export default function Dashboard() {
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">{budget.category}</span>
                       <span className={isOverBudget ? "text-destructive" : "text-muted-foreground"}>
-                        ${spent.toFixed(0)} / ${limit.toFixed(0)}
+                        {formatINR(spent)} / {formatINR(limit)}
                       </span>
                     </div>
                     <Progress 
@@ -252,7 +253,7 @@ export default function Dashboard() {
                     />
                     {isOverBudget && (
                       <p className="text-xs text-destructive">
-                        Over budget by ${(spent - limit).toFixed(0)}
+                        Over budget by {formatINR(spent - limit)}
                       </p>
                     )}
                   </div>
@@ -297,7 +298,7 @@ export default function Dashboard() {
                   <div className={`text-lg font-semibold ${
                     transaction.amount > 0 ? "text-success" : "text-destructive"
                   }`}>
-                    {transaction.amount > 0 ? "+" : ""}${Math.abs(transaction.amount).toFixed(2)}
+                    {transaction.amount > 0 ? "+" : ""}{formatINR(Math.abs(transaction.amount))}
                   </div>
                 </div>
               ))
