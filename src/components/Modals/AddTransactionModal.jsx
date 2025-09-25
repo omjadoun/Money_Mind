@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useTransactions } from "@/contexts/TransactionContext";
 import { DollarSign } from "lucide-react";
+import { formatINR } from "@/lib/utils";
 
 export default function AddTransactionModal({ open, onOpenChange, editingTransaction = null }) {
   const { addTransaction, updateTransaction, categories, paymentMethods } = useTransactions();
@@ -130,7 +131,7 @@ export default function AddTransactionModal({ open, onOpenChange, editingTransac
 
             {/* Amount */}
             <div className="grid gap-2">
-              <Label htmlFor="amount">Amount ($)</Label>
+              <Label htmlFor="amount">Amount (₹)</Label>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -138,7 +139,7 @@ export default function AddTransactionModal({ open, onOpenChange, editingTransac
                   type="number"
                   step="0.01"
                   min="0"
-                  placeholder="0.00"
+                  placeholder="0"
                   className="pl-10 text-right text-lg font-semibold"
                   value={formData.amount}
                   onChange={(e) => handleInputChange("amount", formatAmount(e.target.value))}

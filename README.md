@@ -1,12 +1,31 @@
-# React + Vite
+## Money Mind
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern personal finance dashboard built with React, Vite, Tailwind, and Supabase.
 
-Currently, two official plugins are available:
+### Backend OCR Integration
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+The project includes a lightweight Node/Express OCR backend in `backend/index.js` that exposes `POST /ocr-upload` for receipt OCR using Tesseract.
 
-## Expanding the ESLint configuration
+1) Start the backend
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+cd backend && npm install && npm start
+```
+
+By default it runs on `http://localhost:5000`.
+
+2) Configure frontend to reach backend (optional)
+
+Create a `.env` in the project root with:
+
+```
+VITE_BACKEND_URL=http://localhost:5000
+```
+
+3) Start the frontend
+
+```bash
+npm install && npm run dev
+```
+
+4) Use the Dashboard → Upload Receipt button to send a PDF/JPG/PNG. On success, OCR text is parsed for an amount and a new expense transaction is added so KPIs/charts update immediately.

@@ -13,6 +13,7 @@ import {
   PieChart
 } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+import { formatINR } from "@/lib/utils";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -107,13 +108,17 @@ export default function Dashboard() {
         </div>
         <div className="relative p-8 space-y-4">
           <h1 className="text-4xl font-bold">Welcome back, {user?.email?.split('@')[0] || 'User'}!</h1>
-          <p className="text-lg opacity-90">Here's your financial overview for this month</p>
+          <p className="text-lg opacity-90">Here's your financial overview for this month</p>    
+          {/* Action Buttons */}
           <div className="flex gap-4 pt-4">
+            {/* Add Transaction */}
             <Button variant="secondary" className="gap-2" onClick={() => setShowTransactionModal(true)}>
               <Plus className="h-4 w-4" />
               Add Transaction
             </Button>
-            <Button variant="outline" className="gap-2 border-white/20 text-white hover:bg-white/10" onClick={() => setShowReceiptModal(true)}>
+
+            {/* Upload Receipt */}
+            <Button variant="secondary" className="gap-2" onClick={() => setShowReceiptModal(true)}>
               <Receipt className="h-4 w-4" />
               Upload Receipt
             </Button>
@@ -129,7 +134,7 @@ export default function Dashboard() {
             <ArrowUpRight className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">${totalIncome.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-success">{formatINR(totalIncome)}</div>
             <p className="text-xs text-muted-foreground">
               This month's income
             </p>
@@ -142,7 +147,7 @@ export default function Dashboard() {
             <ArrowDownRight className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">${totalExpenses.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-destructive">{formatINR(totalExpenses)}</div>
             <p className="text-xs text-muted-foreground">
               This month's expenses
             </p>
@@ -156,7 +161,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${netSavings >= 0 ? 'text-success' : 'text-destructive'}`}>
-              ${netSavings.toLocaleString()}
+              {formatINR(netSavings)}
             </div>
             <p className="text-xs text-muted-foreground">
               Savings rate: {savingsRate.toFixed(1)}%
@@ -171,10 +176,10 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${budgetUsedPercentage > 90 ? 'text-destructive' : budgetUsedPercentage > 75 ? 'text-warning' : 'text-accent'}`}>
-              {budgetUsedPercentage}%
+              {Math.min(Math.max(budgetUsedPercentage, 0), 100).toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">
-              ${totalSpent.toLocaleString()} of ${totalBudget.toLocaleString()} budget
+              {formatINR(totalSpent)} of {formatINR(totalBudget)} budget
             </p>
           </CardContent>
         </Card>
@@ -190,10 +195,10 @@ export default function Dashboard() {
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <LineChart data={monthlyData} margin={{ top: 12, right: 12, left: 12, bottom: 12 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
-                  <YAxis />
+                  <YAxis width={70} tickFormatter={(v) => new Intl.NumberFormat('en-IN', { notation: 'compact' }).format(v)} />
                   <Tooltip content={<ChartTooltipContent />} />
                   <Line 
                     type="monotone" 
@@ -239,7 +244,7 @@ export default function Dashboard() {
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">{budget.category}</span>
                       <span className={isOverBudget ? "text-destructive" : "text-muted-foreground"}>
-                        ${spent.toFixed(0)} / ${limit.toFixed(0)}
+                        {formatINR(spent)} / {formatINR(limit)}
                       </span>
                     </div>
                     <Progress 
@@ -248,7 +253,7 @@ export default function Dashboard() {
                     />
                     {isOverBudget && (
                       <p className="text-xs text-destructive">
-                        Over budget by ${(spent - limit).toFixed(0)}
+                        Over budget by {formatINR(spent - limit)}
                       </p>
                     )}
                   </div>

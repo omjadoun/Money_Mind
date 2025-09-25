@@ -16,6 +16,7 @@ import {
   Target,
   DollarSign
 } from "lucide-react";
+import { formatINR } from "@/lib/utils";
 
 const getCategoryColor = (index) => {
   const colors = [
@@ -94,7 +95,7 @@ export default function Budget() {
             <Target className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">${totalBudget.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-primary">{formatINR(totalBudget)}</div>
             <p className="text-xs text-muted-foreground">Monthly allocation</p>
           </CardContent>
         </Card>
@@ -105,7 +106,7 @@ export default function Budget() {
             <DollarSign className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">${totalSpent.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-destructive">{formatINR(totalSpent)}</div>
             <p className="text-xs text-muted-foreground">
               {budgetUsedPercentage.toFixed(1)}% of budget used
             </p>
@@ -118,7 +119,7 @@ export default function Budget() {
             <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">${remainingBudget.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-success">{formatINR(remainingBudget)}</div>
             <p className="text-xs text-muted-foreground">
               Available to spend
             </p>
@@ -159,8 +160,8 @@ export default function Budget() {
                     <div key={category.id} className="flex items-center justify-between p-2 rounded-lg bg-destructive/10">
                       <span className="font-medium">{category.name}</span>
                       <span className="text-destructive">
-                        ${category.spentAmount} / ${category.budgetAmount} 
-                        (+${category.spentAmount - category.budgetAmount})
+                        {formatINR(category.spentAmount)} / {formatINR(category.budgetAmount)} 
+                        (+{formatINR(category.spentAmount - category.budgetAmount)})
                       </span>
                     </div>
                   ))}
@@ -188,7 +189,7 @@ export default function Budget() {
                       <div key={category.id} className="flex items-center justify-between p-2 rounded-lg bg-warning/10">
                         <span className="font-medium">{category.name}</span>
                         <span className="text-warning">
-                          {percentage}% used (${category.spentAmount} / ${category.budgetAmount})
+                          {percentage}% used ({formatINR(category.spentAmount)} / {formatINR(category.budgetAmount)})
                         </span>
                       </div>
                     );
@@ -263,10 +264,10 @@ export default function Budget() {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>
-                          ${spent.toLocaleString()} spent
+                          {formatINR(spent)} spent
                         </span>
                         <span className="text-muted-foreground">
-                          ${budget.toLocaleString()} budget
+                          {formatINR(budget)} budget
                         </span>
                       </div>
                       <Progress
@@ -276,7 +277,7 @@ export default function Budget() {
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>{percentage.toFixed(0)}% used</span>
                         <span>
-                          ${Math.max(0, budget - spent).toLocaleString()} remaining
+                          {formatINR(Math.max(0, budget - spent))} remaining
                         </span>
                       </div>
                     </div>
