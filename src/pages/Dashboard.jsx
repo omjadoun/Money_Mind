@@ -192,12 +192,12 @@ export default function Dashboard() {
             <CardDescription>Monthly comparison for the last 6 months</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={chartConfig} className="h-[300px]">
+            <ChartContainer config={chartConfig} className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <LineChart data={monthlyData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
+                  <XAxis dataKey="month" label={{ value: "Month", position: "insideBottom", offset: -5, style: { fontWeight: "bold" } }}/>
+                  <YAxis label={{ value: "Amount ($)", angle: -90, position: "insideLeft", style: { fontWeight: "bold" } }}/>
                   <Tooltip content={<ChartTooltipContent />} />
                   <Line 
                     type="monotone" 
