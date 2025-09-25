@@ -107,13 +107,17 @@ export default function Dashboard() {
         </div>
         <div className="relative p-8 space-y-4">
           <h1 className="text-4xl font-bold">Welcome back, {user?.email?.split('@')[0] || 'User'}!</h1>
-          <p className="text-lg opacity-90">Here's your financial overview for this month</p>
+          <p className="text-lg opacity-90">Here's your financial overview for this month</p>    
+          {/* Action Buttons */}
           <div className="flex gap-4 pt-4">
+            {/* Add Transaction */}
             <Button variant="secondary" className="gap-2" onClick={() => setShowTransactionModal(true)}>
               <Plus className="h-4 w-4" />
               Add Transaction
             </Button>
-            <Button variant="outline" className="gap-2 border-white/20 text-white hover:bg-white/10" onClick={() => setShowReceiptModal(true)}>
+
+            {/* Upload Receipt */}
+            <Button variant="secondary" className="gap-2" onClick={() => setShowReceiptModal(true)}>
               <Receipt className="h-4 w-4" />
               Upload Receipt
             </Button>
