@@ -294,7 +294,7 @@ export default function Analytics() {
             <CardDescription>Spending by category for the selected period</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={{}} className="h-[300px]">
+            <ChartContainer config={{}} className="h-[300px] w-full overflow-hidden">
               <RechartsPieChart width={400} height={300}>
                 <Pie
                   data={expenseData}
@@ -355,12 +355,12 @@ export default function Analytics() {
             <CardDescription>Monthly comparison over time</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={chartConfig} className="h-[300px]">
+            <ChartContainer config={chartConfig} className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyTrend} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <LineChart data={monthlyTrend} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
+                  <XAxis dataKey="month" label={{ value: "Month", position: "insideBottom", offset: -5, style: { fontWeight: "bold" } }}/>
+                  <YAxis label={{ value: "Amount ($)", angle: -90, position: "insideLeft", style: { fontWeight: "bold" } }}/>
                   <Tooltip content={<ChartTooltipContent />} />
                   <Line 
                     type="monotone" 
@@ -457,7 +457,7 @@ export default function Analytics() {
                 <span>Save $2,000</span>
                 <span className="text-success">$1,400 / $2,000</span>
               </div>
-              <div className="w-full bg-muted rounded-full h-2">
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                 <div className="bg-success h-2 rounded-full" style={{ width: "70%" }}></div>
               </div>
             </div>
@@ -466,17 +466,17 @@ export default function Analytics() {
                 <span>Reduce Food Spending</span>
                 <span className="text-warning">$1,250 / $1,000</span>
               </div>
-              <div className="w-full bg-muted rounded-full h-2">
-                <div className="bg-warning h-2 rounded-full" style={{ width: "125%" }}></div>
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                <div className="bg-warning h-2 rounded-full" style={{ width: "100%" }}></div>
               </div>
-              <p className="text-xs text-warning">Over budget by $250</p>
+              <p className="text-xs text-destructive font-medium"> Over budget by $250 </p>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Emergency Fund</span>
                 <span className="text-primary">$8,500 / $10,000</span>
               </div>
-              <div className="w-full bg-muted rounded-full h-2">
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                 <div className="bg-primary h-2 rounded-full" style={{ width: "85%" }}></div>
               </div>
             </div>

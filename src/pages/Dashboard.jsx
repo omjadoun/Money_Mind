@@ -13,7 +13,6 @@ import {
   PieChart
 } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { formatINR } from "@/lib/utils";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -134,7 +133,7 @@ export default function Dashboard() {
             <ArrowUpRight className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">{formatINR(totalIncome)}</div>
+            <div className="text-2xl font-bold text-success">${totalIncome.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               This month's income
             </p>
@@ -147,7 +146,7 @@ export default function Dashboard() {
             <ArrowDownRight className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">{formatINR(totalExpenses)}</div>
+            <div className="text-2xl font-bold text-destructive">${totalExpenses.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               This month's expenses
             </p>
@@ -161,7 +160,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${netSavings >= 0 ? 'text-success' : 'text-destructive'}`}>
-              {formatINR(netSavings)}
+              ${netSavings.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               Savings rate: {savingsRate.toFixed(1)}%
@@ -176,10 +175,10 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${budgetUsedPercentage > 90 ? 'text-destructive' : budgetUsedPercentage > 75 ? 'text-warning' : 'text-accent'}`}>
-              {Math.min(Math.max(budgetUsedPercentage, 0), 100).toFixed(1)}%
+              {budgetUsedPercentage}%
             </div>
             <p className="text-xs text-muted-foreground">
-              {formatINR(totalSpent)} of {formatINR(totalBudget)} budget
+              ${totalSpent.toLocaleString()} of ${totalBudget.toLocaleString()} budget
             </p>
           </CardContent>
         </Card>
@@ -193,12 +192,12 @@ export default function Dashboard() {
             <CardDescription>Monthly comparison for the last 6 months</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={chartConfig} className="h-[300px]">
+            <ChartContainer config={chartConfig} className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyData} margin={{ top: 12, right: 12, left: 12, bottom: 12 }}>
+                <LineChart data={monthlyData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis width={70} tickFormatter={(v) => new Intl.NumberFormat('en-IN', { notation: 'compact' }).format(v)} />
+                  <XAxis dataKey="month" label={{ value: "Month", position: "insideBottom", offset: -5, style: { fontWeight: "bold" } }}/>
+                  <YAxis label={{ value: "Amount ($)", angle: -90, position: "insideLeft", style: { fontWeight: "bold" } }}/>
                   <Tooltip content={<ChartTooltipContent />} />
                   <Line 
                     type="monotone" 
@@ -244,7 +243,7 @@ export default function Dashboard() {
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">{budget.category}</span>
                       <span className={isOverBudget ? "text-destructive" : "text-muted-foreground"}>
-                        {formatINR(spent)} / {formatINR(limit)}
+                        ${spent.toFixed(0)} / ${limit.toFixed(0)}
                       </span>
                     </div>
                     <Progress 
@@ -253,7 +252,7 @@ export default function Dashboard() {
                     />
                     {isOverBudget && (
                       <p className="text-xs text-destructive">
-                        Over budget by {formatINR(spent - limit)}
+                        Over budget by ${(spent - limit).toFixed(0)}
                       </p>
                     )}
                   </div>
