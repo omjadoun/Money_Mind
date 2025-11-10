@@ -55,11 +55,16 @@ export default function Budget() {
     setShowBudgetModal(true);
   };
 
-  const handleSaveBudget = async (budgetData, budgetId = null) => {
-    if (budgetId) {
-      await updateBudget(budgetId, budgetData);
+  const handleSaveBudget = async (budgetIdOrData, budgetData = null) => {
+    // Handle both calling patterns:
+    // - onSave(budgetData) for new budgets
+    // - onSave(id, budgetData) for editing budgets
+    if (budgetData !== null) {
+      // Editing: first param is ID, second is data
+      await updateBudget(budgetIdOrData, budgetData);
     } else {
-      await addBudget(budgetData);
+      // Creating: first param is data
+      await addBudget(budgetIdOrData);
     }
   };
 
@@ -158,10 +163,10 @@ export default function Budget() {
                 <div className="space-y-2">
                   {overBudgetCategories.map(category => (
                     <div key={category.id} className="flex items-center justify-between p-2 rounded-lg bg-destructive/10">
-                      <span className="font-medium">{category.name}</span>
+                      <span className="font-medium">{category.category}</span>
                       <span className="text-destructive">
-                        {formatINR(category.spentAmount)} / {formatINR(category.budgetAmount)} 
-                        (+{formatINR(category.spentAmount - category.budgetAmount)})
+                        {formatINR(category.spentAmount)} / {formatINR(category.budget_limit)} 
+                        (+{formatINR(category.spentAmount - category.budget_limit)})
                       </span>
                     </div>
                   ))}
@@ -184,12 +189,12 @@ export default function Budget() {
               <CardContent>
                 <div className="space-y-2">
                   {nearLimitCategories.map(category => {
-                    const percentage = ((category.spentAmount / category.budgetAmount) * 100).toFixed(0);
+                    const percentage = ((category.spentAmount / category.budget_limit) * 100).toFixed(0);
                     return (
                       <div key={category.id} className="flex items-center justify-between p-2 rounded-lg bg-warning/10">
-                        <span className="font-medium">{category.name}</span>
+                        <span className="font-medium">{category.category}</span>
                         <span className="text-warning">
-                          {percentage}% used ({formatINR(category.spentAmount)} / {formatINR(category.budgetAmount)})
+                          {percentage}% used ({formatINR(category.spentAmount)} / {formatINR(category.budget_limit)})
                         </span>
                       </div>
                     );

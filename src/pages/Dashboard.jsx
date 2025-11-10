@@ -58,6 +58,16 @@ export default function Dashboard() {
     type: t.type
   }));
 
+  // Parse dates safely as local to avoid timezone edge cases (e.g., YYYY-MM-DD becoming previous day in UTC)
+  const parseLocalDate = (input) => {
+    if (input instanceof Date) return input;
+    if (typeof input === 'string' && /^(\d{4})-(\d{2})-(\d{2})/.test(input)) {
+      const [y, m, d] = input.split('T')[0].split('-').map((n) => parseInt(n, 10));
+      return new Date(y, m - 1, d);
+    }
+    return new Date(input);
+  };
+
   // Generate monthly data from actual transactions (last 6 months)
   const generateMonthlyData = () => {
     const monthlyData = [];
@@ -70,7 +80,7 @@ export default function Dashboard() {
       const monthNum = date.getMonth();
       
       const monthTransactions = transactions.filter(t => {
-        const transactionDate = new Date(t.date);
+        const transactionDate = parseLocalDate(t.date);
         return transactionDate.getMonth() === monthNum && 
                transactionDate.getFullYear() === year;
       });
@@ -125,6 +135,8 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Top Insights removed from Dashboard (moved to Analytics) */}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

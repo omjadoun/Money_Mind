@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,57 +28,132 @@ const categories = [
   "Other"
 ];
 
-export default function AddBudgetModal({ open, onOpenChange, editingBudget = null, onSave }) {
-  const [formData, setFormData] = useState({
-    category: editingBudget?.category || "",
-    budget_limit: editingBudget?.budget_limit || "",
-    start_date: editingBudget?.start_date || new Date().toISOString().split('T')[0],
-    end_date: editingBudget?.end_date || (() => {
-      const date = new Date();
-      date.setMonth(date.getMonth() + 1);
-      return date.toISOString().split('T')[0];
-    })()
-  });
+const getDefaultFormData = () => ({
+  category: "",
+  budget_limit: "",
+  start_date: new Date().toISOString().split('T')[0],
+  end_date: (() => {
+    const date = new Date();
+    date.setMonth(date.getMonth() + 1);
+    return date.toISOString().split('T')[0];
+  })()
+});
 
-  // Update form data when editingBudget changes
-  useState(() => {
-    if (editingBudget) {
-      setFormData({
-        category: editingBudget.category || "",
-        budget_limit: editingBudget.budget_limit || "",
-        start_date: editingBudget.start_date || new Date().toISOString().split('T')[0],
-        end_date: editingBudget.end_date || (() => {
-          const date = new Date();
-          date.setMonth(date.getMonth() + 1);
-          return date.toISOString().split('T')[0];
-        })()
-      });
+export default function AddBudgetModal({ open, onOpenChange, editingBudget = null, onSave }) {
+  const [formData, setFormData] = useState(getDefaultFormData());
+
+  // Helper function to format date for input field (YYYY-MM-DD)
+  const formatDateForInput = (dateValue) => {
+    if (!dateValue) return new Date().toISOString().split('T')[0];
+    // If it's already in YYYY-MM-DD format, return as is
+    if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+      return dateValue;
     }
-  }, [editingBudget]);
+    // If it's an ISO string or Date object, convert to YYYY-MM-DD
+    const date = new Date(dateValue);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Update form data when editingBudget changes or modal opens
+  useEffect(() => {
+    if (open) {
+      if (editingBudget) {
+        console.log('Loading budget for editing:', editingBudget);
+        const formattedStartDate = formatDateForInput(editingBudget.start_date);
+        const formattedEndDate = formatDateForInput(editingBudget.end_date);
+        
+        const newFormData = {
+          category: editingBudget.category || "",
+          budget_limit: editingBudget.budget_limit !== undefined && editingBudget.budget_limit !== null 
+            ? String(editingBudget.budget_limit) 
+            : "",
+          start_date: formattedStartDate,
+          end_date: formattedEndDate
+        };
+        
+        console.log('Setting form data:', newFormData);
+        setFormData(newFormData);
+      } else {
+        // Reset form when creating new budget
+        setFormData(getDefaultFormData());
+      }
+    }
+  }, [editingBudget, open]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Validate category
+      if (!formData.category || formData.category.trim() === '') {
+        throw new Error('Category is required');
+      }
+
+      // Ensure budget_limit is a number
+      const budgetLimit = parseFloat(formData.budget_limit);
+      if (isNaN(budgetLimit) || budgetLimit < 0) {
+        throw new Error('Budget limit must be a non-negative number');
+      }
+
+      // Validate and format dates
+      let startDate = formData.start_date;
+      let endDate = formData.end_date;
+
+      // Ensure dates are in YYYY-MM-DD format
+      if (startDate) {
+        startDate = formatDateForInput(startDate);
+      }
+      if (endDate) {
+        endDate = formatDateForInput(endDate);
+      }
+
+      if (!startDate || startDate.trim() === '') {
+        throw new Error('Start date is required');
+      }
+      if (!endDate || endDate.trim() === '') {
+        throw new Error('End date is required');
+      }
+
+      // Format dates properly - use the date string directly to avoid timezone issues
+      // Date inputs already provide YYYY-MM-DD format
+      const budgetData = {
+        category: formData.category.trim(),
+        budget_limit: budgetLimit,
+        start_date: startDate,
+        end_date: endDate
+      };
+
+      console.log('Submitting budget:', { 
+        editingBudget, 
+        formData, 
+        budgetData,
+        budgetDataKeys: Object.keys(budgetData),
+        budgetDataValues: Object.values(budgetData)
+      });
+
+      // Double-check that all required fields are present
+      if (!budgetData.category || !budgetData.budget_limit || !budgetData.start_date || !budgetData.end_date) {
+        console.error('Budget data incomplete before submission:', budgetData);
+        throw new Error('Please fill in all required fields');
+      }
+
       if (editingBudget) {
-        await onSave(editingBudget.id, formData);
+        console.log('Calling onSave with:', { id: editingBudget.id, budgetData });
+        await onSave(editingBudget.id, budgetData);
       } else {
-        await onSave(formData);
+        console.log('Calling onSave with:', { budgetData });
+        await onSave(budgetData);
       }
       
-      // Reset form
-      setFormData({
-        category: "",
-        budget_limit: "",
-        start_date: new Date().toISOString().split('T')[0],
-        end_date: (() => {
-          const date = new Date();
-          date.setMonth(date.getMonth() + 1);
-          return date.toISOString().split('T')[0];
-        })()
-      });
+      // Only reset and close if save was successful
+      setFormData(getDefaultFormData());
       onOpenChange(false);
     } catch (error) {
       console.error('Error saving budget:', error);
+      // Don't close modal on error - let user see the error and try again
+      // Error toast is handled by BudgetContext
     }
   };
 

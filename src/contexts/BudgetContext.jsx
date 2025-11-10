@@ -41,16 +41,36 @@ class BudgetService {
   }
 
   static async updateBudget(id, updateData) {
+    // Get current user to ensure we're updating the right budget
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    console.log('Updating budget:', { id, updateData, userId: user.id });
+
     const { data, error } = await supabase
       .from('budgets')
       .update(updateData)
       .eq('id', id)
+      .eq('user_id', user.id) // Ensure we only update budgets belonging to the current user
       .select()
       .single();
     
     if (error) {
       console.error('Error updating budget:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       throw error;
+    }
+    
+    if (!data) {
+      throw new Error('Budget not found or you do not have permission to update it');
     }
     
     return data;
@@ -135,10 +155,67 @@ export function BudgetProvider({ children }) {
   };
 
   const updateBudget = async (id, updateData) => {
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to update budgets",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
+      // First, check if updateData exists
+      if (!updateData || typeof updateData !== 'object') {
+        console.error('updateData is invalid:', updateData);
+        throw new Error('Invalid update data provided');
+      }
+
+      console.log('Validating updateData:', JSON.stringify(updateData, null, 2));
+
+      // Validate required fields with better error messages
+      const missingFields = [];
+      
+      // Check category
+      const category = updateData.category;
+      if (!category || (typeof category === 'string' && category.trim() === '')) {
+        missingFields.push('category');
+        console.log('Category missing or empty:', category);
+      }
+      
+      // Check budget_limit - allow 0 as valid
+      const budgetLimit = updateData.budget_limit;
+      if (budgetLimit === undefined || budgetLimit === null || 
+          (typeof budgetLimit === 'string' && budgetLimit.trim() === '')) {
+        missingFields.push('budget_limit');
+        console.log('Budget limit missing or empty:', budgetLimit);
+      }
+      
+      // Check dates
+      const startDate = updateData.start_date;
+      const endDate = updateData.end_date;
+      if (!startDate || (typeof startDate === 'string' && startDate.trim() === '')) {
+        missingFields.push('start_date');
+        console.log('Start date missing or empty:', startDate);
+      }
+      if (!endDate || (typeof endDate === 'string' && endDate.trim() === '')) {
+        missingFields.push('end_date');
+        console.log('End date missing or empty:', endDate);
+      }
+
+      if (missingFields.length > 0) {
+        console.error('Missing required fields:', missingFields);
+        console.error('Full updateData object:', updateData);
+        console.error('updateData keys:', Object.keys(updateData || {}));
+        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+      }
+
+      console.log('Context updateBudget called:', { id, updateData });
+
       const updatedBudget = await BudgetService.updateBudget(id, updateData);
+      
+      console.log('Budget updated successfully:', updatedBudget);
+      
       setBudgets(prev => 
         prev.map(b => b.id === id ? updatedBudget : b)
       );
@@ -151,9 +228,10 @@ export function BudgetProvider({ children }) {
       return updatedBudget;
     } catch (error) {
       console.error('Failed to update budget:', error);
+      const errorMessage = error?.message || error?.error_description || error?.details || "Failed to update budget";
       toast({
         title: "Error",
-        description: "Failed to update budget", 
+        description: errorMessage, 
         variant: "destructive",
       });
       throw error;

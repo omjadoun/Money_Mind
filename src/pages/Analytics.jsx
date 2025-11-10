@@ -9,10 +9,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CalendarIcon, TrendingDown, TrendingUp, DollarSign, PieChart } from "lucide-react";
+import TopInsights from "@/components/TopInsights";
 import { PieChart as RechartsPieChart, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Pie } from "recharts";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { useTransactions } from "@/contexts/TransactionContext";
 import { useState } from "react";
+import { useWeeklySpendingData } from "@/hooks/use-weekly-spending";
 import { formatINR } from "@/lib/utils";
 
 
@@ -144,41 +146,8 @@ export default function Analytics() {
   
   const monthlyTrend = getMonthlyTrend();
 
-  // Generate weekly spending data from actual transactions  
-  const getWeeklySpendingData = () => {
-    const weeks = [];
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    
-    // Calculate weeks in current month
-    const weekCount = Math.ceil(endOfMonth.getDate() / 7);
-    
-    for (let week = 1; week <= weekCount; week++) {
-      const weekStart = new Date(startOfMonth);
-      weekStart.setDate((week - 1) * 7 + 1);
-      const weekEnd = new Date(startOfMonth);
-      weekEnd.setDate(Math.min(week * 7, endOfMonth.getDate()));
-      
-      const weekTransactions = filteredTransactions.filter(t => {
-        const transactionDate = new Date(t.date);
-        return transactionDate >= weekStart && 
-               transactionDate <= weekEnd && 
-               t.type === 'expense';
-      });
-      
-      const weekTotal = weekTransactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
-      
-      weeks.push({
-        week: `Week ${week}`,
-        amount: Math.round(weekTotal)
-      });
-    }
-    
-    return weeks;
-  };
-
-  const weeklySpending = getWeeklySpendingData();
+  // Weekly spending from shared hook (auto-updates on transaction changes)
+  const { weeklySpending } = useWeeklySpendingData();
 
   // Export functionality
   const exportAnalyticsData = () => {
@@ -397,56 +366,38 @@ export default function Analytics() {
           <CardTitle>Weekly Spending Pattern</CardTitle>
           <CardDescription>Your spending habits throughout the month</CardDescription>
         </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklySpending} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+        <CardContent className="overflow-hidden">
+          <div className="w-full min-w-0">
+            <ChartContainer
+              config={chartConfig}
+              className="w-full h-[220px] sm:h-[260px] md:h-[300px]"
+            >
+              <ResponsiveContainer width="100%" height="100%" debounce={100}>
+                <BarChart
+                  data={weeklySpending}
+                  margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+                  barCategoryGap="20%"
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
-                  <YAxis />
+                  <XAxis dataKey="week" interval="preserveStartEnd" tick={{ fontSize: 12 }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} width={30} />
                   <Tooltip content={<ChartTooltipContent />} />
-                  <Bar 
-                    dataKey="amount" 
-                    fill="var(--color-amount)" 
+                  <Bar
+                    dataKey="amount"
+                    fill="var(--color-amount)"
                     radius={[4, 4, 0, 0]}
                   />
                 </BarChart>
               </ResponsiveContainer>
             </ChartContainer>
-          </CardContent>
+          </div>
+        </CardContent>
       </Card>
 
-      {/* Insights Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-success" />
-              Top Insights
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-3 rounded-lg bg-success/10 border border-success/20">
-              <p className="text-sm font-medium text-success">Savings Increased</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Your savings rate improved by 12.8% compared to last month
-              </p>
-            </div>
-            <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
-              <p className="text-sm font-medium text-warning">High Food Spending</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Food expenses are 23% higher than your average
-              </p>
-            </div>
-            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-              <p className="text-sm font-medium text-primary">Best Week</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Week 1 had your lowest spending at $520
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Top Insights below weekly chart, above Monthly Goals */}
+      <TopInsights />
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle>Monthly Goals</CardTitle>

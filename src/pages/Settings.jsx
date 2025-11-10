@@ -190,18 +190,27 @@ export default function Settings() {
 
             <div className="space-y-3">
               <span className="font-medium">Budget Alerts</span>
+              <p className="text-xs text-muted-foreground ml-6">
+                Receive email alerts when your spending approaches budget limits
+              </p>
               <div className="space-y-3 ml-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">When I'm near my budget limit (80%)</span>
+                  <div className="space-y-0.5">
+                    <span className="text-sm">Budget warning at 80%</span>
+                    <p className="text-xs text-muted-foreground">
+                      Get notified when you've used 80% of your budget
+                    </p>
+                  </div>
                   <Switch defaultChecked />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">When I exceed my budget</span>
+                  <div className="space-y-0.5">
+                    <span className="text-sm">When I exceed my budget</span>
+                    <p className="text-xs text-muted-foreground">
+                      Alert when spending exceeds budget limit
+                    </p>
+                  </div>
                   <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Weekly spending summary</span>
-                  <Switch />
                 </div>
               </div>
             </div>
@@ -209,19 +218,28 @@ export default function Settings() {
             <Separator />
 
             <div className="space-y-3">
-              <span className="font-medium">Transaction Alerts</span>
+              <span className="font-medium">Monthly Reports</span>
+              <p className="text-xs text-muted-foreground ml-6">
+                Receive comprehensive monthly financial reports via email
+              </p>
               <div className="space-y-3 ml-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Large transactions (over $500)</span>
+                  <div className="space-y-0.5">
+                    <span className="text-sm">Monthly financial report</span>
+                    <p className="text-xs text-muted-foreground">
+                      Complete summary with income, expenses, budgets, and CSV download
+                    </p>
+                  </div>
                   <Switch defaultChecked />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">New income received</span>
-                  <Switch />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Monthly expense report</span>
-                  <Switch defaultChecked />
+                  <div className="space-y-0.5">
+                    <span className="text-sm">Report delivery date</span>
+                    <p className="text-xs text-muted-foreground">
+                      Sent on the 1st of each month at 9:00 AM
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">Automatic</Badge>
                 </div>
               </div>
             </div>

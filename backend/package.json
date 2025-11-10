@@ -6,15 +6,25 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "test:alerts": "node -e \"fetch('http://localhost:5000/api/notifications/check-budgets', {method:'POST'}).then(r=>r.json()).then(d=>console.log(d)).catch(e=>console.error(e))\"",
+    "test:reports": "node -e \"fetch('http://localhost:5000/api/notifications/send-monthly-reports', {method:'POST'}).then(r=>r.json()).then(d=>console.log(d)).catch(e=>console.error(e))\"",
+    "test:email": "node test-email-send.js",
+    "test:budget-alert": "node test-budget-alert.js",
+    "test:monthly-report": "node test-monthly-report.js",
+    "check:env": "node check-env.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
     "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
     "express": "^5.1.0",
     "multer": "^2.0.2",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.8",
     "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
