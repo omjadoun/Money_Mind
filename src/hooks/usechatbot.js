@@ -1,5 +1,6 @@
 import { useTransactions } from "@/contexts/TransactionContext";
 import { useBudgets } from "@/contexts/BudgetContext";
+import RLAgent from "@/rl/rlAgent";
 
 export default function useChatbot() {
   const { transactions } = useTransactions();
@@ -8,53 +9,63 @@ export default function useChatbot() {
   const { remainingBudget, totalBudget, totalSpent, budgetCategories } =
     getBudgetMetrics();
 
-  // CATEGORY KEYWORD MAP
+  // ------------------ CATEGORY MAP ------------------
   const CATEGORY_MAP = {
-    // Food
-    food: "Food & Dining",
-    dine: "Food & Dining",
-    dining: "Food & Dining",
+    "fast food": "Food & Dining",
+    "junk food": "Food & Dining",
+    "online shopping": "Shopping",
+    "food": "Food & Dining",
+    "restaurant": "Food & Dining",
+    "dining": "Food & Dining",
 
-    // Transport
-    travel: "Transportation",
-    cab: "Transportation",
-    taxi: "Transportation",
-    bus: "Transportation",
-    transport: "Transportation",
-    transportation: "Transportation",
+    "shopping": "Shopping",
+    "shoes": "Shopping",
+    "clothes": "Shopping",
+    "fashion": "Shopping",
 
-    // Shopping
-    shopping: "Shopping",
-    shoes: "Shopping",
-    clothes: "Shopping",
-    fashion: "Shopping",
+    "travel": "Transportation",
+    "cab": "Transportation",
+    "taxi": "Transportation",
+    "bus": "Transportation",
+    "train ticket": "Transportation",
 
-    // Bills
-    rent: "Bills & Utilities",
-    bill: "Bills & Utilities",
-    electricity: "Bills & Utilities",
-    utilities: "Bills & Utilities",
+    "rent": "Bills & Utilities",
+    "bill": "Bills & Utilities",
+    "electricity bill": "Bills & Utilities",
+    "electricity": "Bills & Utilities",
 
-    // Entertainment
-    movies: "Entertainment",
-    movie: "Entertainment",
-    fun: "Entertainment",
-    entertainment: "Entertainment",
+    "movies": "Entertainment",
+    "movie": "Entertainment",
+    "fun": "Entertainment",
+    "entertainment": "Entertainment",
   };
 
-  const detectCategory = (word) => CATEGORY_MAP[word?.toLowerCase()] || null;
-
-  // ---------------- DATE HELPERS ----------------
-  const isCurrentMonth = (dateStr) => {
-    const d = new Date(dateStr);
-    const now = new Date();
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  // detect multi-word categories
+  const detectCategoryFromText = (text) => {
+    const lower = text.toLowerCase();
+    const keys = Object.keys(CATEGORY_MAP).sort((a, b) => b.length - a.length);
+    for (const k of keys) {
+      if (lower.includes(k)) return CATEGORY_MAP[k];
+    }
+    return null;
   };
 
-  const isCurrentWeek = (dateStr) => {
-    const d = new Date(dateStr);
-    const now = new Date();
+  const detectCategoryToken = (word) =>
+    CATEGORY_MAP[word?.toLowerCase()] || null;
 
+  // ------------------ Date Helpers ------------------
+  const isCurrentMonth = (d) => {
+    const date = new Date(d);
+    const now = new Date();
+    return (
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear()
+    );
+  };
+
+  const isCurrentWeek = (d) => {
+    const date = new Date(d);
+    const now = new Date();
     const start = new Date(now);
     start.setDate(now.getDate() - now.getDay() + 1);
     start.setHours(0, 0, 0, 0);
@@ -63,24 +74,24 @@ export default function useChatbot() {
     end.setDate(start.getDate() + 6);
     end.setHours(23, 59, 59, 999);
 
-    return d >= start && d <= end;
+    return date >= start && date <= end;
   };
 
-  // ---------------- CALCULATIONS ----------------
+  // ------------------ Financial Calculations ------------------
   const getMonthlyExpense = () =>
     transactions
       .filter((t) => isCurrentMonth(t.date) && t.type === "expense")
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((s, t) => s + t.amount, 0);
 
   const getWeeklyExpense = () =>
     transactions
       .filter((t) => isCurrentWeek(t.date) && t.type === "expense")
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((s, t) => s + t.amount, 0);
 
   const getMonthlyIncome = () =>
     transactions
       .filter((t) => isCurrentMonth(t.date) && t.type === "income")
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((s, t) => s + t.amount, 0);
 
   const getCategoryExpense = (realCategory) =>
     transactions
@@ -90,138 +101,302 @@ export default function useChatbot() {
           t.type === "expense" &&
           t.category?.toLowerCase() === realCategory.toLowerCase()
       )
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((s, t) => s + t.amount, 0);
 
-  // Remaining category budget
   const getCategoryRemaining = (userCategory) => {
-    const realCategory = detectCategory(userCategory);
-    if (!realCategory) return null;
-
+    if (!userCategory) return null;
+    const real = detectCategoryFromText(userCategory) || userCategory;
     const found = budgetCategories.find(
-      (cat) => cat.category.toLowerCase() === realCategory.toLowerCase()
+      (c) => c.category.toLowerCase() === real.toLowerCase()
     );
-
     if (!found) return null;
-
-    return parseFloat(found.budget_limit) - parseFloat(found.spentAmount);
+    return found.budget_limit - found.spentAmount;
   };
 
-  // Check spending allowance
-  const canUserBuyFromCategory = (amount, categoryWord) => {
-    const remaining = getCategoryRemaining(categoryWord);
-    const realCategory = detectCategory(categoryWord);
-
-    if (realCategory && remaining !== null) {
-      return {
-        allowed: remaining >= amount,
-        remaining,
-        category: realCategory,
-      };
-    }
+  // ---------------- RL STATE ----------------
+  const buildRlState = ({ amountRequested, categoryName }) => {
+    const income = getMonthlyIncome();
+    const expense = getMonthlyExpense();
+    const catRemaining = categoryName ? getCategoryRemaining(categoryName) : null;
 
     return {
-      allowed: remainingBudget >= amount,
-      remaining: remainingBudget,
-      category: "your overall budget",
+      monthly_income: income,
+      monthly_expense: expense,
+      savings: income - expense,
+      category_remaining: catRemaining,
+      total_remaining: remainingBudget,
+      request_amount: Number(amountRequested),
     };
   };
 
-  // ---------------- CHATBOT LOGIC ----------------
-  const processMessage = (msg) => {
-    msg = msg.toLowerCase();
+  // ---------------- Helpful Suggestions ----------------
+  const buildSmartAdvice = (amount, category, catRemaining) => {
+    const diff = amount - catRemaining;
 
-    // GREETING
-    if (["hi", "hello", "hey"].includes(msg)) {
-      return "Hi! Ask me about expenses, income, savings, weekly spending, or if you can afford something.";
+    return (
+      `Your ${category} budget has only ₹${catRemaining.toFixed(
+        2
+      )} left — ₹${amount} exceeds it by ₹${diff}.\n\n` +
+      `Here are safe spending options:\n` +
+      `• Spend ₹${catRemaining.toFixed(
+        2
+      )} from ${category} and pay the remaining ₹${diff} from overall budget.\n` +
+      `• Split into 4 weekly payments of ₹${Math.ceil(amount / 4)}.\n` +
+      `• Or reduce another category by ₹${diff}.\n\n` +
+      `Reply "it worked" or "no it didn't".`
+    );
+  };
+
+  const actionToAdvice = (action, { amount, category }) => {
+    if (action === "buy_now")
+      return `Your ${category} budget is sufficient. You can buy it safely.`;
+
+    if (action === "split_payment")
+      return `Split ₹${amount} into 4 weekly payments of ₹${Math.ceil(
+        amount / 4
+      )}.`;
+
+    if (action === "reduce_other")
+      return `Buy it, but reduce another category slightly to maintain savings.`;
+
+    if (action === "buy_later")
+      return `Consider delaying this purchase until next month.`;
+
+    return "Spend carefully.";
+  };
+
+  // ---------------- FEEDBACK DETECTION ----------------
+  const detectPositiveFeedback = (t) =>
+    ["it worked", "yes it worked"].some((x) => t.includes(x));
+
+  const detectNegativeFeedback = (t) =>
+    ["didn't work", "did not work", "no it didn't"].some((x) =>
+      t.includes(x)
+    );
+
+  // ---------------- MAIN CHATBOT LOGIC ----------------
+  const processMessage = (raw) => {
+    if (!raw) return "";
+    const msg = raw.toLowerCase();
+
+    // Feedback
+    if (detectPositiveFeedback(msg) || detectNegativeFeedback(msg)) {
+      const last = RLAgent.getLast();
+      if (!last) return "No previous suggestion to record feedback for.";
+      RLAgent.update(
+        last.stateObj,
+        last.action,
+        detectPositiveFeedback(msg) ? 1 : -1
+      );
+      return detectPositiveFeedback(msg)
+        ? "Great — I'll keep giving similar suggestions!"
+        : "Got it — I will avoid similar suggestions next time.";
     }
 
-    // WEEKLY EXPENSE PRIORITY
-    if (
-      msg.includes("weekly expense") ||
-      msg.includes("week expense") ||
-      msg.includes("spent this week") ||
-      (msg.includes("week") && msg.includes("expense"))
-    ) {
+    // Greetings
+    if (["hi", "hello", "hey"].includes(msg))
+      return "Hello! Try asking: 'How should I spend 2000 on food?'";
+
+    // Weekly
+    if (msg.includes("weekly expense") || msg.includes("this week"))
       return `You have spent ₹${getWeeklyExpense().toFixed(2)} this week.`;
-    }
 
-    // MULTI-INTENT DETECTION
-    const parts = [];
+    // Multi Intent
+    const multi = [];
+    if (msg.includes("income"))
+      multi.push(
+        `Your total income this month is ₹${getMonthlyIncome().toFixed(2)}.`
+      );
+    if (msg.includes("saving"))
+      multi.push(
+        `Your savings this month are ₹${(
+          getMonthlyIncome() - getMonthlyExpense()
+        ).toFixed(2)}.`
+      );
+    if (msg.includes("expense") && !msg.includes("spent on"))
+      multi.push(
+        `You have spent ₹${getMonthlyExpense().toFixed(2)} this month.`
+      );
+    if (multi.length > 1) return multi.join("\n");
 
-    if (msg.includes("income")) {
-      parts.push(`Your total income this month is ₹${getMonthlyIncome().toFixed(2)}.`);
-    }
-
-    if (msg.includes("saving")) {
-      const s = (getMonthlyIncome() - getMonthlyExpense()).toFixed(2);
-      parts.push(`Your savings this month are ₹${s}.`);
-    }
-
-    if (msg.includes("expense") || msg.includes("spent")) {
-      parts.push(`You have spent ₹${getMonthlyExpense().toFixed(2)} this month.`);
-    }
-
-    if (parts.length > 1) return parts.join("\n");
-
-    // CATEGORY SPENDING ("spent on travel")
-    const categoryWord = msg.split(" ").find((word) => detectCategory(word));
-
-    if (categoryWord && msg.includes("spent")) {
-      const realCat = detectCategory(categoryWord);
-      const amt = getCategoryExpense(realCat);
-
+    // Category "spent on"
+    const detectedCat = detectCategoryFromText(msg);
+    if (detectedCat && msg.includes("spent")) {
+      const amt = getCategoryExpense(detectedCat);
       return amt > 0
-        ? `You spent ₹${amt} on ${realCat} this month.`
-        : `No spending recorded for ${realCat} this month.`;
+        ? `You spent ₹${amt} on ${detectedCat} this month.`
+        : `No spending recorded for ${detectedCat} this month.`;
     }
 
-    // PATTERN 1: "can I buy shoes for 1000"
-    const buyMatch = msg.match(/can i (buy|spend).*?(\w+).*?for (\d+)/);
+    // CAN I BUY ___ FOR ___?
+    const buy1 = msg.match(/can i (buy|spend).*?(\w+).*?for (\d+)/);
+    if (buy1) {
+      const item = buy1[2];
+      const amount = Number(buy1[3]);
+      const detected =
+        detectCategoryFromText(msg) || detectCategoryToken(item);
+      const remaining = getCategoryRemaining(detected);
 
-    if (buyMatch) {
-      const item = buyMatch[2];
-      const amount = parseInt(buyMatch[3]);
-
-      const result = canUserBuyFromCategory(amount, item);
-
-      return result.allowed
-        ? `Yes, you can buy it. You still have ₹${result.remaining.toFixed(2)} left from ${result.category}.`
-        : `No, you cannot buy it. You only have ₹${result.remaining.toFixed(2)} left in ${result.category}.`;
+      if (remaining !== null) {
+        if (amount > remaining)
+          return `No, you cannot buy it. Only ₹${remaining.toFixed(
+            2
+          )} left in ${detected}.`;
+        return `Yes, you can buy it. You have ₹${remaining.toFixed(
+          2
+        )} left in ${detected}.`;
+      }
+      return `Yes, based on your overall budget you can buy it.`;
     }
 
-    // PATTERN 2 (NEW): "can I spend 4000 on food"
-    const spendOnMatch = msg.match(/can i spend (\d+)\s+on\s+(\w+)/);
-
-    if (spendOnMatch) {
-      const amount = parseInt(spendOnMatch[1]);
-      const category = spendOnMatch[2];
-
-      const result = canUserBuyFromCategory(amount, category);
-
-      return result.allowed
-        ? `Yes, you can spend it. You still have ₹${result.remaining.toFixed(2)} left in ${result.category}.`
-        : `No, you cannot spend it. You only have ₹${result.remaining.toFixed(2)} left in ${result.category}.`;
+    // CAN I SPEND 2000 ON FOOD?
+    const buy2 = msg.match(/can i spend (\d+)\s+on\s+([a-zA-Z\s]+)/);
+    if (buy2) {
+      const amount = Number(buy2[1]);
+      const catRaw = buy2[2].trim();
+      const detected = detectCategoryFromText(catRaw);
+      const remaining = getCategoryRemaining(detected);
+      if (remaining !== null) {
+        if (amount > remaining)
+          return `No, you cannot spend it. Only ₹${remaining.toFixed(
+            2
+          )} left in ${detected}.`;
+        return `Yes, you can spend it. You still have ₹${remaining.toFixed(
+          2
+        )} left in ${detected}.`;
+      }
     }
 
-    // SINGLE INTENT FALLBACKS
-    if (msg.includes("expense") || msg.includes("spent")) {
+    // ---------------- HOW SHOULD I SPEND (FINAL LOGIC) ----------------
+    const howMatch = msg.match(/how should i (spend|buy|purchase)/);
+    if (howMatch) {
+      const amountMatch = msg.match(/(\d{2,})/);
+      if (!amountMatch) return "How much do you want to spend?";
+
+      const amount = Number(amountMatch[1]);
+      const catDetected = detectCategoryFromText(msg);
+      const realCat = catDetected || "this category";
+
+      const catRemaining = getCategoryRemaining(realCat);
+
+      // CASE 1: Category over budget → CHECK ONLY OVERALL REMAINING BUDGET
+      if (catRemaining !== null && catRemaining < 0) {
+
+        if (amount > remainingBudget) {
+          return (
+            `No — you cannot spend ₹${amount}.\n` +
+            `Your ${realCat} category is over budget and you only have ₹${remainingBudget} left overall.`
+          );
+        }
+
+        return (
+          `Your ${realCat} category is over budget, but your overall budget can cover it.\n\n` +
+          `Smart options:\n` +
+          `• Use ₹${amount} from your overall remaining budget.\n` +
+          `• Split into 4 weekly payments of ₹${Math.ceil(amount / 4)}.\n` +
+          `• Delay part of it to next month.\n\n` +
+          `Reply "it worked" or "no it didn't".`
+        );
+      }
+
+      // CASE 2: Category insufficient & overall insufficient
+      if (
+        catRemaining !== null &&
+        amount > catRemaining &&
+        amount > remainingBudget
+      ) {
+        return (
+          `No — you cannot spend ₹${amount}.\n` +
+          `Your ${realCat} category has only ₹${catRemaining}, ` +
+          `and your overall remaining budget is ₹${remainingBudget}.`
+        );
+      }
+
+      // CASE 3: Category insufficient but overall can cover
+      if (
+        catRemaining !== null &&
+        amount > catRemaining &&
+        amount <= remainingBudget
+      ) {
+        return buildSmartAdvice(amount, realCat, catRemaining);
+      }
+
+      // CASE 4: Category has enough → RL advice
+      const state = buildRlState({
+        amountRequested: amount,
+        categoryName: realCat,
+      });
+      const action = RLAgent.chooseAction(state);
+      const advice = actionToAdvice(action, {
+        amount,
+        category: realCat,
+        categoryRemaining: catRemaining,
+      });
+
+      RLAgent.saveLast(state, action);
+      return advice + "\n\nReply 'it worked' or 'no it didn't'.";
+    }
+
+    // ---------------- SAVINGS IMPROVEMENT LOGIC ----------------
+    if (
+      msg.includes("improve my savings") ||
+      msg.includes("save more") ||
+      msg.includes("increase my savings") ||
+      msg.includes("improve savings") ||
+      msg.includes("how can i save")
+    ) {
+      const income = getMonthlyIncome();
+      const expense = getMonthlyExpense();
+      const savings = income - expense;
+
+      const overspent = budgetCategories.filter(
+        (c) => c.spentAmount > c.budget_limit
+      );
+
+      const underSpent = budgetCategories.filter(
+        (c) => c.budget_limit - c.spentAmount > 0
+      );
+
+      let advice = `Here’s how you can improve your savings:\n\n`;
+
+      advice += `• Your monthly income is ₹${income} and expenses are ₹${expense}, giving monthly savings of ₹${savings}.\n\n`;
+
+      if (overspent.length > 0) {
+        advice += `• You overspent in these categories:\n`;
+        overspent.forEach((c) => {
+          advice += `   - ${c.category}: overspent by ₹${c.spentAmount - c.budget_limit}\n`;
+        });
+        advice += `  Try reducing these next month.\n\n`;
+      }
+
+      if (underSpent.length > 0) {
+        advice += `• You still have remaining limits in:\n`;
+        underSpent.forEach((c) => {
+          advice += `   - ${c.category}: ₹${c.budget_limit - c.spentAmount} remaining\n`;
+        });
+        advice += `  Try shifting this amount directly to savings.\n\n`;
+      }
+
+      advice += `• Avoid impulse purchases this month.\n`;
+      advice += `• Set aside a fixed goal like ₹500–1500 per month.\n`;
+      advice += `• Check your expenses weekly for better control.\n`;
+
+      return advice;
+    }
+
+    // Fallbacks
+    if (msg.includes("expense"))
       return `You have spent ₹${getMonthlyExpense().toFixed(2)} this month.`;
-    }
-
-    if (msg.includes("income")) {
+    if (msg.includes("income"))
       return `Your total income this month is ₹${getMonthlyIncome().toFixed(2)}.`;
-    }
+    if (msg.includes("saving"))
+      return `Your savings this month are ₹${(
+        getMonthlyIncome() - getMonthlyExpense()
+      ).toFixed(2)}.`;
+    if (msg.includes("budget"))
+      return `Your total budget is ₹${totalBudget}, spent ₹${totalSpent}, remaining ₹${remainingBudget}.`;
 
-    if (msg.includes("saving")) {
-      const s = (getMonthlyIncome() - getMonthlyExpense()).toFixed(2);
-      return `Your savings this month are ₹${s}.`;
-    }
-
-    if (msg.includes("budget")) {
-      return `Your total budget is ₹${totalBudget}, you spent ₹${totalSpent}, and you have ₹${remainingBudget} left.`;
-    }
-
-    return "Sorry, I didn't understand. Try asking about expenses, category spending, savings, or if you can afford something!";
+    return "Sorry, I didn't understand. Try asking: 'How should I spend 2000 on food?'";
   };
 
   return { processMessage };
