@@ -5,20 +5,25 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
+
 import { AuthProvider } from "@/contexts/AuthContext";
 import { TransactionProvider } from "@/contexts/TransactionContext";
 import { BudgetProvider } from "@/contexts/BudgetContext";
+
 import { Layout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRouter";
 
 import Dashboard from "./pages/Dashboard";
-import Transactions from "./pages/Transactions"; 
+import Transactions from "./pages/Transactions";
 import Analytics from "./pages/Analytics";
 import Budget from "./pages/Budget";
 import Settings from "./pages/Settings";
 import Premium from "./pages/Premium";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+
+// ✅ IMPORT CHATBOT
+import Chatbot from "@/components/ui/chatbot";
 
 const queryClient = new QueryClient();
 
@@ -33,12 +38,17 @@ const App = () => (
               <Sonner />
               <BrowserRouter>
                 <Routes>
+                  {/* Public Auth Route */}
                   <Route path="/auth" element={<Auth />} />
+
+                  {/* Protected Routes */}
                   <Route
                     path="/*"
                     element={
                       <ProtectedRoute>
                         <Layout>
+
+                          {/* App Pages */}
                           <Routes>
                             <Route path="/" element={<Dashboard />} />
                             <Route path="/transactions" element={<Transactions />} />
@@ -48,6 +58,10 @@ const App = () => (
                             <Route path="/premium" element={<Premium />} />
                             <Route path="*" element={<NotFound />} />
                           </Routes>
+
+                          {/* 👇 CHATBOT FLOATING WIDGET (appears on every logged-in page) */}
+                          <Chatbot />
+
                         </Layout>
                       </ProtectedRoute>
                     }

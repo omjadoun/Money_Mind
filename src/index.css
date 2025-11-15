@@ -2,10 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* -------------------------------------------------------------
+   🎨 DESIGN SYSTEM (ALL COLORS MUST BE HSL)
+-------------------------------------------------------------- */
 
 @layer base {
   :root {
@@ -18,7 +17,7 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 225 100% 6%;
 
-    /* Deep blue primary for financial trust */
+    /* Deep blue primary */
     --primary: 217 91% 35%;
     --primary-foreground: 0 0% 100%;
 
@@ -29,7 +28,7 @@ All colors MUST be HSL.
     --muted: 217 50% 96%;
     --muted-foreground: 215 16% 47%;
 
-    /* Teal accent for modern touch */
+    /* Teal accent */
     --accent: 175 84% 32%;
     --accent-foreground: 0 0% 100%;
 
@@ -40,41 +39,35 @@ All colors MUST be HSL.
     --input: 217 32% 91%;
     --ring: 217 91% 35%;
 
-    /* Success color for positive amounts */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
 
-    /* Warning color for budget alerts */
     --warning: 45 93% 47%;
     --warning-foreground: 0 0% 100%;
 
-    /* Custom gradients */
     --gradient-primary: linear-gradient(135deg, hsl(217 91% 35%), hsl(175 84% 32%));
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(217 50% 98%));
 
-    /* Shadows */
-    --shadow-card: 0 4px 6px -1px hsl(217 32% 17% / 0.1), 0 2px 4px -1px hsl(217 32% 17% / 0.06);
-    --shadow-lg: 0 10px 15px -3px hsl(217 32% 17% / 0.1), 0 4px 6px -2px hsl(217 32% 17% / 0.05);
+    --shadow-card: 0 4px 6px -1px hsl(217 32% 17% / 0.1),
+                   0 2px 4px -1px hsl(217 32% 17% / 0.06);
+    --shadow-lg: 0 10px 15px -3px hsl(217 32% 17% / 0.1),
+                 0 4px 6px -2px hsl(217 32% 17% / 0.05);
 
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
+  /* -------------------------------------------------------------
+     🌙 DARK MODE COLORS
+  -------------------------------------------------------------- */
   .dark {
     --background: 224 71% 4%;
     --foreground: 213 31% 91%;
@@ -113,8 +106,11 @@ All colors MUST be HSL.
     --gradient-primary: linear-gradient(135deg, hsl(175 84% 32%), hsl(217 91% 35%));
     --gradient-card: linear-gradient(145deg, hsl(225 71% 6%), hsl(225 71% 8%));
 
-    --shadow-card: 0 4px 6px -1px hsl(0 0% 0% / 0.3), 0 2px 4px -1px hsl(0 0% 0% / 0.2);
-    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.3), 0 4px 6px -2px hsl(0 0% 0% / 0.2);
+    --shadow-card: 0 4px 6px -1px hsl(0 0% 0% / 0.3),
+                   0 2px 4px -1px hsl(0 0% 0% / 0.2);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.3),
+                 0 4px 6px -2px hsl(0 0% 0% / 0.2);
+
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -130,8 +126,61 @@ All colors MUST be HSL.
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* -------------------------------------------------------------
+   ✨ FADE-IN ANIMATION
+-------------------------------------------------------------- */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out;
+}
+
+/* -------------------------------------------------------------
+   🤖 CHATBOT UI THEME STYLES
+-------------------------------------------------------------- */
+
+/* Chat window container */
+.chatbot-popup {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Floating button */
+.chatbot-button {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  transition: all 0.2s ease;
+}
+.chatbot-button:hover {
+  filter: brightness(1.1);
+}
+
+/* User chat bubble */
+.chat-bubble-user {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-radius: 12px;
+}
+
+/* Bot chat bubble */
+.chat-bubble-bot {
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  border-radius: 12px;
+}
+
+/* Smooth scrolling for chat */
+.chat-scroll {
+  scroll-behavior: smooth;
 }
