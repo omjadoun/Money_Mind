@@ -1,0 +1,346 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 250 100% 99%;
+    --foreground: 225 100% 6%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 225 100% 6%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 225 100% 6%;
+
+    --primary: 217 91% 35%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 217 50% 96%;
+    --secondary-foreground: 217 91% 35%;
+
+    --muted: 217 50% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 175 84% 32%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 32% 91%;
+    --input: 217 32% 91%;
+    --ring: 217 91% 35%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 45 93% 47%;
+    --warning-foreground: 0 0% 100%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 35%), hsl(175 84% 32%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(217 50% 98%));
+
+    --shadow-card: 0 4px 6px -1px hsl(217 32% 17% / 0.1),
+                   0 2px 4px -1px hsl(217 32% 17% / 0.06);
+    --shadow-lg: 0 10px 15px -3px hsl(217 32% 17% / 0.1),
+                 0 4px 6px -2px hsl(217 32% 17% / 0.05);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+
+    --card: 225 71% 6%;
+    --card-foreground: 213 31% 91%;
+
+    --popover: 225 71% 6%;
+    --popover-foreground: 213 31% 91%;
+
+    --primary: 175 84% 32%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 225 71% 12%;
+    --secondary-foreground: 213 31% 91%;
+
+    --muted: 225 71% 12%;
+    --muted-foreground: 217 10% 65%;
+
+    --accent: 217 91% 35%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 225 71% 12%;
+    --input: 225 71% 12%;
+    --ring: 175 84% 32%;
+
+    --success: 142 70% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 45 93% 47%;
+    --warning-foreground: 0 0% 100%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(175 84% 32%), hsl(217 91% 35%));
+    --gradient-card: linear-gradient(145deg, hsl(225 71% 6%), hsl(225 71% 8%));
+
+    --shadow-card: 0 4px 6px -1px hsl(0 0% 0% / 0.3),
+                   0 2px 4px -1px hsl(0 0% 0% / 0.2);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.3),
+                 0 4px 6px -2px hsl(0 0% 0% / 0.2);
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out;
+}
+
+.chatbot-popup {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+
+.chatbot-button {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  transition: all 0.2s ease;
+}
+.chatbot-button:hover {
+  filter: brightness(1.1);
+}
+
+.chat-bubble-user {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-radius: 12px;
+}
+
+.chat-bubble-bot {
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  border-radius: 12px;
+}
+
+.chat-scroll {
+  scroll-behavior: smooth;
+}
+
+@layer utilities {
+  .container-responsive {
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: clamp(0.75rem, 4vw, 1.5rem);
+    padding-right: clamp(0.75rem, 4vw, 1.5rem);
+  }
+
+  .text-responsive-xs {
+    font-size: clamp(0.625rem, 1.5vw, 0.75rem);
+    line-height: 1.5;
+  }
+
+  .text-responsive-sm {
+    font-size: clamp(0.75rem, 2vw, 0.875rem);
+    line-height: 1.5;
+  }
+
+  .text-responsive-base {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+    line-height: 1.5;
+  }
+
+  .text-responsive-lg {
+    font-size: clamp(1rem, 3vw, 1.125rem);
+    line-height: 1.5;
+  }
+
+  .text-responsive-xl {
+    font-size: clamp(1.125rem, 4vw, 1.25rem);
+    line-height: 1.5;
+  }
+
+  .text-responsive-2xl {
+    font-size: clamp(1.25rem, 5vw, 1.5rem);
+    line-height: 1.4;
+  }
+
+  .text-responsive-3xl {
+    font-size: clamp(1.5rem, 6vw, 1.875rem);
+    line-height: 1.3;
+  }
+
+  .text-responsive-4xl {
+    font-size: clamp(1.875rem, 7vw, 2.25rem);
+    line-height: 1.2;
+  }
+
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .touch-target-lg {
+    min-height: 48px;
+    min-width: 48px;
+  }
+
+  .space-responsive {
+    gap: clamp(0.5rem, 2vw, 1rem);
+  }
+
+  .space-responsive-lg {
+    gap: clamp(1rem, 3vw, 1.5rem);
+  }
+
+  .no-overflow {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  .grid-responsive {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: clamp(1rem, 3vw, 1.5rem);
+  }
+
+  .flex-responsive {
+    display: flex;
+    flex-wrap: wrap;
+    gap: clamp(0.75rem, 2vw, 1rem);
+  }
+
+  .p-responsive {
+    padding: clamp(0.75rem, 3vw, 1.5rem);
+  }
+
+  .px-responsive {
+    padding-left: clamp(0.75rem, 4vw, 1.5rem);
+    padding-right: clamp(0.75rem, 4vw, 1.5rem);
+  }
+
+  .py-responsive {
+    padding-top: clamp(0.75rem, 3vw, 1.5rem);
+    padding-bottom: clamp(0.75rem, 3vw, 1.5rem);
+  }
+
+  .m-responsive {
+    margin: clamp(0.5rem, 2vw, 1rem);
+  }
+
+  .mx-responsive {
+    margin-left: clamp(0.5rem, 3vw, 1rem);
+    margin-right: clamp(0.5rem, 3vw, 1rem);
+  }
+
+  .my-responsive {
+    margin-top: clamp(0.5rem, 2vw, 1rem);
+    margin-bottom: clamp(0.5rem, 2vw, 1rem);
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  button,
+  a,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  body {
+    overflow-x: hidden;
+    position: relative;
+  }
+}
+
+.chart-container-responsive {
+  width: 100%;
+  height: 100%;
+  min-height: 250px;
+  max-height: 400px;
+}
+
+@media (min-width: 768px) {
+  .chart-container-responsive {
+    min-height: 300px;
+    max-height: 500px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .chart-container-responsive {
+    min-height: 350px;
+    max-height: 600px;
+  }
+}
+
+.table-responsive-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .table-responsive-wrapper {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}

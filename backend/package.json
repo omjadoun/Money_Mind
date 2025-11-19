@@ -1,0 +1,39 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test:alerts": "node -e \"fetch('http://localhost:5000/api/notifications/check-budgets', {method:'POST'}).then(r=>r.json()).then(d=>console.log(d)).catch(e=>console.error(e))\"",
+    "test:reports": "node -e \"fetch('http://localhost:5000/api/notifications/send-monthly-reports', {method:'POST'}).then(r=>r.json()).then(d=>console.log(d)).catch(e=>console.error(e))\"",
+    "test:2fa-email": "node check-2fa-email.js",
+    "test:whatsapp": "node test-whatsapp.js",
+    "test:whatsapp-mfa": "node test-whatsapp-mfa.js",
+    "check:env": "node check-env.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.81.1",
+    "cors": "^2.8.5",
+    "cron": "^4.3.4",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "multer": "^2.0.2",
+    "node-cache": "^5.1.2",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.8",
+    "sharp": "^0.34.5",
+    "tesseract.js": "^4.1.4",
+    "tmp-promise": "^3.0.3",
+    "twilio": "^5.10.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
