@@ -32,23 +32,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { 
-  User, 
-  Bell, 
-  Shield, 
-  Download, 
+import {
+  User,
+  Bell,
+  Shield,
+  Download,
   Upload,
   Camera,
   Mail,
   Lock,
   Globe,
-  Smartphone,
   Loader2,
-  Copy,
-  Check,
   X
 } from "lucide-react"
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTransactions } from "@/contexts/TransactionContext"
 import { useBudgets } from "@/contexts/BudgetContext"
@@ -58,9 +54,9 @@ import { useNavigate } from "react-router-dom"
 import { BACKEND_BASE_URL } from "@/lib/backend"
 
 export default function Settings() {
-  const { 
-    user, 
-    signOut, 
+  const {
+    user,
+    signOut,
     refreshUser
   } = useAuth()
   const { transactions } = useTransactions()
@@ -100,17 +96,12 @@ export default function Settings() {
   const [dateFormat, setDateFormat] = useState("mm-dd-yyyy")
   const [language, setLanguage] = useState("en")
 
-  // 2FA state
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
+  // Google MFA state
+  const [googleMfaEnabled, setGoogleMfaEnabled] = useState(false)
+  const [googleMfaSetup, setGoogleMfaSetup] = useState(null) // { secret, qrCode }
+  const [googleMfaCode, setGoogleMfaCode] = useState('')
+  const [isEnablingMfa, setIsEnablingMfa] = useState(false)
   const [twoFALoading, setTwoFALoading] = useState(false)
-  const [verificationCode, setVerificationCode] = useState('')
-  
-  // WhatsApp 2FA state
-  const [whatsapp2FAEnabled, setWhatsapp2FAEnabled] = useState(false)
-  const [whatsappNumber, setWhatsappNumber] = useState('')
-  const [whatsappEnrollmentId, setWhatsappEnrollmentId] = useState('')
-  const [whatsappEnrolling, setWhatsappEnrolling] = useState(false)
-  const [whatsappVerifying, setWhatsappVerifying] = useState(false)
 
   // Load user data and preferences
   useEffect(() => {
@@ -136,21 +127,21 @@ export default function Settings() {
       setBudgetExceeded(notifSettings.budgetExceeded !== false)
       setMonthlyReports(notifSettings.monthlyReports !== false)
 
-      // Check WhatsApp 2FA status
-      const checkWhatsApp2FA = async () => {
+      // Check Google MFA status
+      const checkGoogleMfaStatus = async () => {
         try {
-          const response = await fetch(`${BACKEND_BASE_URL}/api/whatsapp-mfa/whatsapp-mfa-status/${user.id}`)
+          const response = await fetch(`${BACKEND_BASE_URL}/api/google-mfa/status/${user.id}`)
           const data = await response.json()
-          if (data.hasWhatsAppMFA) {
-            setWhatsapp2FAEnabled(true)
-            setTwoFactorEnabled(true)
-            setWhatsappNumber(data.whatsappNumber || '')
+          if (data.enabled) {
+            setGoogleMfaEnabled(true)
+          } else {
+            setGoogleMfaEnabled(false)
           }
         } catch (error) {
-          console.error("Error checking WhatsApp 2FA status:", error)
+          console.error("Error checking Google MFA status:", error)
         }
       }
-      checkWhatsApp2FA()
+      checkGoogleMfaStatus()
     }
   }, [user])
 
@@ -190,74 +181,47 @@ export default function Settings() {
 
     try {
       setProfileLoading(true)
-      
-      // Convert image to base64 data URL (works without storage bucket)
-      const reader = new FileReader()
-      
-      reader.onloadend = async () => {
-        try {
-          const dataUrl = reader.result
-          
-          // Update local state immediately for instant UI feedback
-          setAvatarUrl(dataUrl)
-          
-          // Save to Supabase user metadata
-          const { error: updateError } = await supabase.auth.updateUser({
-            data: { avatar_url: dataUrl }
-          })
-          
-          if (updateError) {
-            console.error("Error updating user metadata:", updateError)
-            setAvatarUrl("") // Revert on error
-            toast({
-              title: "Error",
-              description: updateError.message || "Failed to save photo",
-              variant: "destructive",
-            })
-            return
-          }
-          
-          // Refresh user in background to update navbar
-          refreshUser().catch(console.error)
-          
-          toast({
-            title: "Success",
-            description: "Profile photo updated successfully",
-          })
-        } catch (error) {
-          console.error("Error in reader callback:", error)
-          setAvatarUrl("")
-          toast({
-            title: "Error",
-            description: error.message || "Failed to upload photo",
-            variant: "destructive",
-          })
-        } finally {
-          setProfileLoading(false)
-        }
+
+      const formData = new FormData()
+      formData.append('avatar', file)
+      formData.append('userId', user.id)
+
+      const response = await fetch(`${BACKEND_BASE_URL}/api/account/upload-avatar`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to upload image')
       }
-      
-      reader.onerror = () => {
-        console.error("FileReader error")
-        setProfileLoading(false)
-        toast({
-          title: "Error",
-          description: "Failed to read image file",
-          variant: "destructive",
-        })
-      }
-      
-      // Read file as data URL
-      reader.readAsDataURL(file)
-      
+
+      // Update local state
+      setAvatarUrl(result.publicUrl)
+
+      // Refresh user in background to update navbar
+      refreshUser().catch(console.error)
+
+      toast({
+        title: "Success",
+        description: "Profile photo updated successfully",
+      })
+
     } catch (error) {
-      console.error("Error uploading photo:", error)
-      setProfileLoading(false)
+      console.error("Error updating photo:", error)
+      // Don't clear existing avatar on error
       toast({
         title: "Error",
-        description: error.message || "Failed to upload photo",
+        description: error.message || "Failed to update photo",
         variant: "destructive",
       })
+    } finally {
+      setProfileLoading(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
@@ -266,7 +230,7 @@ export default function Settings() {
     try {
       setProfileLoading(true)
       setAvatarUrl("") // Update immediately
-      
+
       const { error } = await supabase.auth.updateUser({
         data: { avatar_url: null }
       })
@@ -275,7 +239,7 @@ export default function Settings() {
         setAvatarUrl(metadata.avatar_url || "")
         throw error
       }
-      
+
       refreshUser().catch(console.error)
       toast({
         title: "Success",
@@ -461,169 +425,72 @@ export default function Settings() {
     localStorage.setItem("notificationSettings", JSON.stringify(settings))
   }, [emailNotifications, budgetWarning80, budgetExceeded, monthlyReports])
 
-  // Cancel 2FA enrollment
-  const handleCancel2FAEnrollment = () => {
-    setVerificationCode('')
-    setWhatsappNumber('')
-    setWhatsappEnrollmentId('')
-    setWhatsappEnrolling(false)
-  }
-
-  // Handle WhatsApp 2FA enable - start enrollment
-  const handleEnableWhatsApp2FA = async () => {
-    if (!whatsappNumber.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter your WhatsApp number",
-        variant: "destructive",
-      })
-      return
-    }
-
+  // Google MFA Handlers
+  const handleEnableGoogleMFA = async () => {
     try {
-      setWhatsappEnrolling(true)
+      setIsEnablingMfa(true)
       setTwoFALoading(true)
-      
-      const response = await fetch(`${BACKEND_BASE_URL}/api/whatsapp-mfa/enroll-whatsapp`, {
+
+      const response = await fetch(`${BACKEND_BASE_URL}/api/google-mfa/generate`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: user.id,
-          whatsapp_number: whatsappNumber
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, email: user.email })
       })
 
       const result = await response.json()
 
-      if (!response.ok) {
-        throw new Error(result.error || `Server error: ${response.status}`)
-      }
+      if (!response.ok) throw new Error(result.error || "Failed to generate MFA secret")
 
-      if (result.success) {
-        setWhatsappEnrollmentId(result.challengeId)
-        toast({
-          title: "Code Sent",
-          description: `Verification code sent to ${result.whatsappNumber}`,
-        })
-      } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to start WhatsApp 2FA enrollment",
-          variant: "destructive",
-        })
-      }
+      setGoogleMfaSetup(result) // { secret, qrCode }
+      toast({
+        title: "Scan QR Code",
+        description: "Please scan the QR code with your authenticator app.",
+      })
     } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to enable WhatsApp 2FA",
+        description: error.message,
         variant: "destructive",
       })
     } finally {
-      setWhatsappEnrolling(false)
+      setIsEnablingMfa(false)
       setTwoFALoading(false)
     }
   }
 
-  // Handle WhatsApp 2FA verification after enrollment
-  const handleVerifyWhatsApp2FA = async () => {
-    if (!verificationCode || verificationCode.length !== 6) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid 6-digit code",
-        variant: "destructive",
-      })
+  const handleVerifyGoogleSetup = async () => {
+    if (!googleMfaCode) {
+      toast({ title: "Error", description: "Please enter the code", variant: "destructive" })
       return
     }
 
     try {
-      setWhatsappVerifying(true)
-      
-      const response = await fetch(`${BACKEND_BASE_URL}/api/whatsapp-mfa/verify-whatsapp-enroll`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: user.id,
-          code: verificationCode,
-          challenge_id: whatsappEnrollmentId
-        })
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        setWhatsapp2FAEnabled(true)
-        setTwoFactorEnabled(true)
-        setWhatsappNumber('')
-        setWhatsappEnrollmentId('')
-        setVerificationCode('')
-        toast({
-          title: "Success",
-          description: "WhatsApp two-factor authentication enabled successfully",
-        })
-      } else {
-        toast({
-          title: "Error",
-          description: result.error || "Invalid verification code",
-          variant: "destructive",
-        })
-        setVerificationCode('')
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to verify WhatsApp 2FA",
-        variant: "destructive",
-      })
-      setVerificationCode('')
-    } finally {
-      setWhatsappVerifying(false)
-    }
-  }
-
-  // Handle WhatsApp 2FA disable
-  const handleDisableWhatsApp2FA = async () => {
-    try {
       setTwoFALoading(true)
-      
-      // Get factor ID from status
-      const statusResponse = await fetch(`${BACKEND_BASE_URL}/api/whatsapp-mfa/whatsapp-mfa-status/${user.id}`)
-      const statusData = await statusResponse.json()
-      
-      const response = await fetch(`${BACKEND_BASE_URL}/api/whatsapp-mfa/unenroll-whatsapp`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch(`${BACKEND_BASE_URL}/api/google-mfa/verify-setup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: user.id,
-          factor_id: statusData.factorId || 'whatsapp'
+          userId: user.id,
+          token: googleMfaCode,
+          secret: googleMfaSetup.secret
         })
       })
 
       const result = await response.json()
 
-      if (result.success) {
-        setWhatsapp2FAEnabled(false)
-        setTwoFactorEnabled(false)
-        toast({
-          title: "Success",
-          description: "WhatsApp two-factor authentication disabled",
-        })
-      } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to disable WhatsApp 2FA",
-          variant: "destructive",
-        })
-      }
+      if (!response.ok) throw new Error(result.error || "Verification failed")
+
+      setGoogleMfaEnabled(true)
+      setGoogleMfaSetup(null)
+      setGoogleMfaCode('')
+      toast({
+        title: "Success",
+        description: "Two-factor authentication enabled successfully!",
+      })
     } catch (error) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to disable WhatsApp 2FA",
+        title: "Verification Failed",
+        description: error.message,
         variant: "destructive",
       })
     } finally {
@@ -631,7 +498,33 @@ export default function Settings() {
     }
   }
 
+  const handleDisableGoogleMFA = async () => {
+    try {
+      setTwoFALoading(true)
+      const response = await fetch(`${BACKEND_BASE_URL}/api/google-mfa/disable`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      })
 
+      if (!response.ok) throw new Error("Failed to disable MFA")
+
+      setGoogleMfaEnabled(false)
+      setGoogleMfaSetup(null)
+      toast({
+        title: "Disabled",
+        description: "Two-factor authentication has been disabled.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setTwoFALoading(false)
+    }
+  }
 
   // Handle delete account
   const handleDeleteAccount = async () => {
@@ -646,10 +539,10 @@ export default function Settings() {
 
     try {
       setDeleteLoading(true)
-      
+
       // Get the current session to get access token
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
+
       if (sessionError || !session) {
         throw new Error("Unable to get current session. Please try signing out and back in.")
       }
@@ -685,7 +578,7 @@ export default function Settings() {
       // Sign out and redirect
       await signOut()
       navigate("/auth")
-      
+
       toast({
         title: "Account Deleted",
         description: "Your account and all data have been permanently deleted",
@@ -749,8 +642,8 @@ export default function Settings() {
                 Click the camera icon to upload a new photo
               </p>
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={profileLoading}
@@ -758,8 +651,8 @@ export default function Settings() {
                   <Upload className="h-4 w-4 mr-2" />
                   Upload
                 </Button>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="sm"
                   onClick={handleRemovePhoto}
                   disabled={profileLoading || !avatarUrl}
@@ -775,8 +668,8 @@ export default function Settings() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="firstName" className="text-sm sm:text-base">First Name</Label>
-              <Input 
-                id="firstName" 
+              <Input
+                id="firstName"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 disabled={profileLoading}
@@ -785,8 +678,8 @@ export default function Settings() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="lastName" className="text-sm sm:text-base">Last Name</Label>
-              <Input 
-                id="lastName" 
+              <Input
+                id="lastName"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 disabled={profileLoading}
@@ -795,9 +688,9 @@ export default function Settings() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm sm:text-base">Email</Label>
-              <Input 
-                id="email" 
-                type="email" 
+              <Input
+                id="email"
+                type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={profileLoading}
@@ -806,9 +699,9 @@ export default function Settings() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone" className="text-sm sm:text-base">Phone Number</Label>
-              <Input 
-                id="phone" 
-                type="tel" 
+              <Input
+                id="phone"
+                type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 disabled={profileLoading}
@@ -854,158 +747,75 @@ export default function Settings() {
 
             <Separator />
 
+            {/* Google MFA Section */}
             <div className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      <span className="font-medium">Two-Factor Authentication</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Add an extra layer of security to your account
-                    </p>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    <span className="font-medium">Two-Factor Authentication</span>
                   </div>
-                  <Badge variant="secondary" className="text-xs">
-                    {twoFactorEnabled ? "WhatsApp Enabled" : "Disabled"}
-                  </Badge>
+                  <p className="text-sm text-muted-foreground">
+                    Secure your account with Google Authenticator
+                  </p>
                 </div>
-
-                {/* WhatsApp 2FA Section */}
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4" />
-                          <span className="font-medium">WhatsApp Messages</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Receive verification codes via WhatsApp
-                        </p>
-                      </div>
-                      {!whatsappEnrollmentId && (
-                        <Button 
-                          variant="outline"
-                          onClick={whatsapp2FAEnabled ? handleDisableWhatsApp2FA : handleEnableWhatsApp2FA}
-                          disabled={twoFALoading || whatsappEnrolling}
-                          className="touch-target-lg text-xs sm:text-sm"
-                        >
-                          {twoFALoading || whatsappEnrolling ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              <span className="hidden sm:inline">{whatsapp2FAEnabled ? "Disabling..." : "Enabling..."}</span>
-                              <span className="sm:hidden">{whatsapp2FAEnabled ? "Disable" : "Enable"}</span>
-                            </>
-                          ) : (
-                            whatsapp2FAEnabled ? "Disable" : "Enable"
-                          )}
-                        </Button>
-                      )}
-                    </div>
-
-                    {/* WhatsApp Number Input */}
-                    {!whatsapp2FAEnabled && !whatsappEnrollmentId && (
-                      <div className="space-y-2">
-                        <Label htmlFor="whatsapp-number">WhatsApp Number</Label>
-                        <Input
-                          id="whatsapp-number"
-                          type="tel"
-                          placeholder="+1234567890"
-                          value={whatsappNumber}
-                          onChange={(e) => setWhatsappNumber(e.target.value)}
-                          disabled={whatsappEnrolling}
-                          className="h-11 sm:h-10 text-base sm:text-sm"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Enter your WhatsApp number in international format (e.g., +1234567890)
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-              {/* WhatsApp 2FA Enrollment Flow */}
-              {whatsappEnrollmentId && !whatsapp2FAEnabled && (
-                <div className="mt-4 p-3 sm:p-4 border rounded-lg bg-muted/50 space-y-3 sm:space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-sm sm:text-base">Verify WhatsApp Number</h4>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={handleCancel2FAEnrollment}
-                      className="touch-target"
-                    >
-                      <X className="h-4 w-4" />
+                {googleMfaEnabled ? (
+                  <Button variant="destructive" onClick={handleDisableGoogleMFA} disabled={twoFALoading}>
+                    {twoFALoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Disable"}
+                  </Button>
+                ) : (
+                  !googleMfaSetup && (
+                    <Button onClick={handleEnableGoogleMFA} disabled={twoFALoading}>
+                      {twoFALoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enable"}
                     </Button>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      We've sent a 6-digit verification code to your WhatsApp number. Please enter it below.
-                    </p>
-                    
-                    <div className="space-y-2">
-                      <Label className="text-xs sm:text-sm">Enter verification code</Label>
-                      <div className="flex justify-center px-2">
-                        <InputOTP
-                          maxLength={6}
-                          value={verificationCode}
-                          onChange={(value) => setVerificationCode(value)}
-                          disabled={whatsappVerifying}
-                          className="gap-2 sm:gap-3"
-                        >
-                          <InputOTPGroup className="gap-2 sm:gap-3">
-                            <InputOTPSlot index={0} className="w-10 h-10 sm:w-12 sm:h-12 text-base sm:text-lg" />
-                            <InputOTPSlot index={1} className="w-10 h-10 sm:w-12 sm:h-12 text-base sm:text-lg" />
-                            <InputOTPSlot index={2} className="w-10 h-10 sm:w-12 sm:h-12 text-base sm:text-lg" />
-                            <InputOTPSlot index={3} className="w-10 h-10 sm:w-12 sm:h-12 text-base sm:text-lg" />
-                            <InputOTPSlot index={4} className="w-10 h-10 sm:w-12 sm:h-12 text-base sm:text-lg" />
-                            <InputOTPSlot index={5} className="w-10 h-10 sm:w-12 sm:h-12 text-base sm:text-lg" />
-                          </InputOTPGroup>
-                        </InputOTP>
-                      </div>
-                      <p className="text-xs text-center text-muted-foreground">
-                        Enter the 6-digit code sent to your WhatsApp
-                      </p>
-                    </div>
-                    
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Button
-                        onClick={handleVerifyWhatsApp2FA}
-                        disabled={verificationCode.length !== 6 || whatsappVerifying}
-                        className="flex-1 touch-target-lg"
-                      >
-                        {whatsappVerifying ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Verifying...
-                          </>
-                        ) : (
-                          "Verify & Enable"
-                        )}
+                  )
+                )}
+              </div>
+
+              {/* Setup UI */}
+              {!googleMfaEnabled && googleMfaSetup && (
+                <div className="mt-4 space-y-4 border p-4 rounded-md bg-muted/50">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="flex items-center justify-between w-full">
+                      <Label className="text-lg font-semibold">Scan QR Code</Label>
+                      <Button variant="ghost" size="icon" onClick={() => setGoogleMfaSetup(null)}>
+                        <X className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        onClick={handleCancel2FAEnrollment}
-                        disabled={whatsappVerifying}
-                        className="touch-target-lg"
-                      >
-                        Cancel
+                    </div>
+                    <div className="bg-white p-2 rounded-lg">
+                      <img src={googleMfaSetup.qrCode} alt="QR Code" className="w-48 h-48" />
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center max-w-xs">
+                      Open your authenticator app (like Google Authenticator) and scan this code.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Enter Verification Code</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={googleMfaCode}
+                        onChange={(e) => setGoogleMfaCode(e.target.value)}
+                        placeholder="123456"
+                        maxLength={6}
+                        className="font-mono text-center tracking-widest text-lg"
+                      />
+                      <Button onClick={handleVerifyGoogleSetup} disabled={twoFALoading}>
+                        {twoFALoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify"}
                       </Button>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* 2FA Enabled Status */}
-              {twoFactorEnabled && !whatsappEnrollmentId && (
+              {/* Enabled Status */}
+              {googleMfaEnabled && (
                 <div className="mt-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
                   <p className="text-sm text-green-800 dark:text-green-200">
-                    ✓ 2FA is enabled on your account using WhatsApp. 
-                    You'll need to enter a verification code when signing in.
+                    ✓ 2FA is enabled. You'll need to enter a code from your authenticator app when signing in.
                   </p>
                 </div>
               )}
-              </div>
             </div>
 
             <Separator />
@@ -1047,7 +857,7 @@ export default function Settings() {
                   Receive email updates about your expenses
                 </p>
               </div>
-              <Switch 
+              <Switch
                 checked={emailNotifications}
                 onCheckedChange={setEmailNotifications}
               />
@@ -1068,7 +878,7 @@ export default function Settings() {
                       Get notified when you&apos;ve used 80% of your budget
                     </p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={budgetWarning80}
                     onCheckedChange={setBudgetWarning80}
                   />
@@ -1080,7 +890,7 @@ export default function Settings() {
                       Alert when spending exceeds budget limit
                     </p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={budgetExceeded}
                     onCheckedChange={setBudgetExceeded}
                   />
@@ -1103,7 +913,7 @@ export default function Settings() {
                       Complete summary with income, expenses, budgets, and CSV download
                     </p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={monthlyReports}
                     onCheckedChange={setMonthlyReports}
                   />
@@ -1214,7 +1024,7 @@ export default function Settings() {
                 Permanently delete your account and all data
               </p>
             </div>
-            <Button 
+            <Button
               variant="destructive"
               onClick={() => setDeleteDialogOpen(true)}
               className="touch-target-lg w-full sm:w-auto"
@@ -1278,7 +1088,6 @@ export default function Settings() {
         </DialogContent>
       </Dialog>
 
-
       {/* Delete Account Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -1316,4 +1125,3 @@ export default function Settings() {
     </div>
   )
 }
-

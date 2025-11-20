@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
@@ -16,15 +17,14 @@ export default function Auth() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [requires2FA, setRequires2FA] = useState(false)
-  const [mfaMethod, setMfaMethod] = useState('whatsapp') // Only 'whatsapp' is supported
+  const [mfaMethod, setMfaMethod] = useState('google')
   const [twoFACode, setTwoFACode] = useState('')
   const [twoFAFactorId, setTwoFAFactorId] = useState('')
   const [twoFAChallengeId, setTwoFAChallengeId] = useState('')
-  const [whatsappNumber, setWhatsappNumber] = useState('')
-  
-  const { user, signIn, signUp, verify2FASignIn } = useAuth()
+
+  const { user, signIn, signUp, verify2FASignIn, signOut } = useAuth()
   const navigate = useNavigate()
-  
+
   useEffect(() => {
     // Only navigate if user exists AND 2FA is not required
     if (user && !requires2FA) {
@@ -36,7 +36,7 @@ export default function Auth() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    
+
     try {
       if (isSignUp) {
         const { error } = await signUp(email, password)
@@ -47,8 +47,7 @@ export default function Auth() {
         if (requires2FA && twoFACode) {
           // Verify 2FA code and complete sign-in
           console.log('🔐 Verifying 2FA code...', { method: mfaMethod })
-          // Get userId from signIn result if WhatsApp MFA (stored in state or from result)
-          // For now, we'll let verify2FASignIn get it from session or we can pass it
+
           const { error: verifyError } = await verify2FASignIn(
             twoFAFactorId,
             twoFAChallengeId,
@@ -74,29 +73,28 @@ export default function Auth() {
           // Regular sign in
           console.log('🔐 Calling signIn with email:', email)
           const result = await signIn(email, password)
-          console.log('📥 signIn result received:', { 
-            hasError: !!result.error, 
+          console.log('📥 signIn result received:', {
+            hasError: !!result.error,
             requires2FA: result.requires2FA,
             hasData: !!result.data,
             errorMessage: result.error?.message,
             factorId: result.factorId,
             challengeId: result.challengeId
           })
-          
+
           if (result.error) {
             setError(result.error.message)
             setLoading(false)
           } else if (result.requires2FA) {
             // 2FA is required - store factor and challenge IDs
-            console.log('🔐 Setting requires2FA=true, method:', result.mfaMethod, 'factorId:', result.factorId, 'challengeId:', result.challengeId)
+            console.log('🔐 Setting requires2FA=true, method:', result.mfaMethod)
             setRequires2FA(true)
-            setMfaMethod(result.mfaMethod || 'whatsapp')
+            setMfaMethod(result.mfaMethod || 'google')
             setTwoFAFactorId(result.factorId || '')
             setTwoFAChallengeId(result.challengeId)
-            setWhatsappNumber(result.whatsappNumber || '')
             setError('')
             setLoading(false) // Stop loading to show 2FA input
-            console.log('🔐 2FA required for sign-in. Method:', result.mfaMethod || 'whatsapp')
+            console.log('🔐 2FA required for sign-in. Method:', result.mfaMethod || 'google')
           } else if (result.data) {
             // Sign-in successful without 2FA
             console.log('✅ Sign-in successful without 2FA')
@@ -124,10 +122,10 @@ export default function Auth() {
             {requires2FA ? 'Two-Factor Authentication' : (isSignUp ? 'Create Account' : 'Welcome Back')}
           </CardTitle>
           <CardDescription className="text-xs sm:text-sm mt-2 sm:mt-3 px-2">
-            {requires2FA 
-              ? `Enter the 6-digit code sent to ${whatsappNumber || 'your WhatsApp'}`
-              : (isSignUp 
-                ? 'Sign up to start managing your finances' 
+            {requires2FA
+              ? 'Enter the 6-digit code from your authenticator app'
+              : (isSignUp
+                ? 'Sign up to start managing your finances'
                 : 'Sign in to your Money Mind account')
             }
           </CardDescription>
@@ -143,11 +141,11 @@ export default function Auth() {
                   <div className="text-center space-y-1 sm:space-y-2">
                     <Label className="text-sm sm:text-base font-semibold">Enter Verification Code</Label>
                     <p className="text-xs sm:text-sm text-muted-foreground px-2">
-                      Check your WhatsApp for the 6-digit code sent to {whatsappNumber || 'your number'}
+                      Open your Google Authenticator app to view the code
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex justify-center px-2">
                   <InputOTP
                     maxLength={6}
@@ -167,24 +165,21 @@ export default function Auth() {
                     </InputOTPGroup>
                   </InputOTP>
                 </div>
-                
-                <p className="text-xs text-center text-muted-foreground px-2">
-                  Didn't receive the code? Check your WhatsApp messages or try again.
-                </p>
-                
+
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   className="w-full touch-target"
-                  onClick={() => {
+                  onClick={async () => {
                     setRequires2FA(false)
-                    setMfaMethod('whatsapp')
+                    setMfaMethod('google')
                     setTwoFACode('')
                     setTwoFAFactorId('')
                     setTwoFAChallengeId('')
-                    setWhatsappNumber('')
                     setError('')
+                    // Sign out to clear the session and reset MFA state
+                    await signOut()
                   }}
                   disabled={loading}
                 >
@@ -206,7 +201,7 @@ export default function Auth() {
                     className="h-11 sm:h-10 text-base sm:text-sm"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="password" className="text-sm sm:text-base">Password</Label>
                   <Input
@@ -223,15 +218,15 @@ export default function Auth() {
                 </div>
               </>
             )}
-            
+
             {error && (
               <Alert variant="destructive" className="text-xs sm:text-sm">
                 <AlertDescription className="break-words">{error}</AlertDescription>
               </Alert>
             )}
-            
-            <Button 
-              type="submit" 
+
+            <Button
+              type="submit"
               className="w-full touch-target-lg text-sm sm:text-base"
               disabled={loading || (requires2FA && twoFACode.length !== 6)}
             >
@@ -240,7 +235,7 @@ export default function Auth() {
               )}
             </Button>
           </form>
-          
+
           <div className="text-center mt-4 sm:mt-5">
             <Button
               variant="ghost"
@@ -251,8 +246,8 @@ export default function Auth() {
               disabled={loading}
               className="touch-target text-xs sm:text-sm"
             >
-              {isSignUp 
-                ? 'Already have an account? Sign in' 
+              {isSignUp
+                ? 'Already have an account? Sign in'
                 : "Don't have an account? Sign up"
               }
             </Button>

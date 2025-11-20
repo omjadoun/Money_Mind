@@ -1,0 +1,151 @@
+--- Testing parseOcrResult ---
+Result: {
+  "amount": 28.25,
+  "chosen": {
+    "value": 28.25,
+    "token": " 28.25",
+    "lineIndex": 2,
+    "conf": null,
+    "score": 68.76
+  },
+  "candidates": [
+    {
+      "value": 28.25,
+      "token": " 28.25",
+      "lineIndex": 2,
+      "conf": null,
+      "keyword": true,
+      "score": 68.76,
+      "lineText": "TOTAL 28.25"
+    },
+    {
+      "value": 0,
+      "token": "TOTAL",
+      "lineIndex": 2,
+      "conf": null,
+      "keyword": true,
+      "score": 61.5,
+      "lineText": null
+    },
+    {
+      "value": 15,
+      "token": "15",
+      "lineIndex": 3,
+      "conf": null,
+      "keyword": false,
+      "score": 26.63,
+      "lineText": "03/15/2024"
+    },
+    {
+      "value": 28.25,
+      "token": "28.25",
+      "lineIndex": 2,
+      "conf": null,
+      "keyword": false,
+      "score": 23.76,
+      "lineText": null
+    },
+    {
+      "value": 3,
+      "token": "03",
+      "lineIndex": 3,
+      "conf": null,
+      "keyword": false,
+      "score": 23.14,
+      "lineText": "03/15/2024"
+    },
+    {
+      "value": 3,
+      "token": "s 3.00",
+      "lineIndex": 1,
+      "conf": null,
+      "keyword": false,
+      "score": 14.64,
+      "lineText": "Apples 3.00"
+    },
+    {
+      "value": 3,
+      "token": "3.00",
+      "lineIndex": 1,
+      "conf": null,
+      "keyword": false,
+      "score": 14.64,
+      "lineText": null
+    },
+    {
+      "value": 1,
+      "token": "Apples",
+      "lineIndex": 1,
+      "conf": null,
+      "keyword": false,
+      "score": 12.25,
+      "lineText": null
+    },
+    {
+      "value": 0,
+      "token": "GROCERY",
+      "lineIndex": 0,
+      "conf": null,
+      "keyword": false,
+      "score": 8,
+      "lineText": null
+    },
+    {
+      "value": 0,
+      "token": "STORE",
+      "lineIndex": 0,
+      "conf": null,
+      "keyword": false,
+      "score": 8,
+      "lineText": null
+    },
+    {
+      "value": 371572024,
+      "token": "371572024",
+      "lineIndex": 4,
+      "conf": null,
+      "keyword": false,
+      "score": -50,
+      "lineText": "371572024"
+    },
+    {
+      "value": 3152024,
+      "token": "03/15/2024",
+      "lineIndex": 3,
+      "conf": null,
+      "keyword": false,
+      "score": -54.25,
+      "lineText": null
+    }
+  ],
+  "vendorCandidates": [
+    "GROCERY STORE",
+    "Apples 3.00"
+  ],
+  "dateCandidates": [
+    {
+      "iso": "2024-03-15",
+      "raw": "03/15/2024",
+      "reason": "ranked",
+      "score": 94,
+      "sourceLine": "03/15/2024"
+    }
+  ],
+  "rawLines": [
+    "GROCERY STORE",
+    "Apples 3.00",
+    "TOTAL 28.25",
+    "03/15/2024",
+    "371572024"
+  ],
+  "debug": {
+    "candidateCount": 12,
+    "sampleLines": [
+      "GROCERY STORE",
+      "Apples 3.00",
+      "TOTAL 28.25",
+      "03/15/2024",
+      "371572024"
+    ]
+  }
+}

@@ -1,0 +1,99 @@
+--- Testing Full Parse ---
+Result: {
+  "merchant": "GROCERY STORE",
+  "amountCandidates": [
+    {
+      "raw": "3.00",
+      "value": 3,
+      "reparsed": "3.00"
+    },
+    {
+      "raw": "2.50",
+      "value": 2.5,
+      "reparsed": "2.50"
+    },
+    {
+      "raw": "4.00",
+      "value": 4,
+      "reparsed": "4.00"
+    },
+    {
+      "raw": "2.75",
+      "value": 2.75,
+      "reparsed": "2.75"
+    },
+    {
+      "raw": "8.50",
+      "value": 8.5,
+      "reparsed": "8.50"
+    },
+    {
+      "raw": "1.75",
+      "value": 1.75,
+      "reparsed": "1.75"
+    },
+    {
+      "raw": "2.25\nO",
+      "value": 2.25,
+      "reparsed": "2.250"
+    },
+    {
+      "raw": "3.50",
+      "value": 3.5,
+      "reparsed": "3.50"
+    },
+    {
+      "raw": "28.25\n\n03",
+      "value": 28.25,
+      "reparsed": "28.2503"
+    },
+    {
+      "raw": "15",
+      "value": 15,
+      "reparsed": "15"
+    },
+    {
+      "raw": "2024",
+      "value": 2024,
+      "reparsed": "2024"
+    }
+  ],
+  "total": {
+    "raw": "28.25",
+    "value": 28.25,
+    "reason": "ranked_candidate",
+    "subtotal": null,
+    "taxes": []
+  },
+  "date": "2024-03-15",
+  "dateRaw": "03/15/2024",
+  "dateExtractReason": "ranked",
+  "linesCount": 12
+}
+
+--- Testing Date Extraction ---
+Date Extraction Result: {
+  "iso": "2024-03-15",
+  "raw": "03/15/2024",
+  "reason": "ranked",
+  "score": 100,
+  "sourceLine": "03/15/2024"
+}
+
+--- Testing Amount Extraction ---
+Total Extraction Result: {
+  "raw": "28.25",
+  "value": 28.25,
+  "reason": "ranked_candidate",
+  "subtotal": null,
+  "taxes": []
+}
+
+--- Testing Weird Amount ---
+Weird Amount Result: {
+  "raw": "371572024",
+  "value": 371572024,
+  "reason": "ranked_candidate",
+  "subtotal": null,
+  "taxes": []
+}
