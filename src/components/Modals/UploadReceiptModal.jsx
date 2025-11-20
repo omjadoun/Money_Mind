@@ -241,8 +241,23 @@ export default function UploadReceiptModal({ open, onOpenChange }) {
       const text = body?.text || "";
       setOcrText(text);
 
-      // Amount extraction (unchanged)
-      const amount = extractAmountFromOcrText(text);
+      // Prefer backend parsed amount (normalized), fallback to client-side extractor
+      let amount = null;
+      const parsedFromServer = body.parsed ?? body;
+      if (parsedFromServer) {
+        if (parsedFromServer.total && Number.isFinite(Number(parsedFromServer.total.value))) {
+          amount = Number(parsedFromServer.total.value);
+        } else if (parsedFromServer.chosen && Number.isFinite(Number(parsedFromServer.chosen.value))) {
+          amount = Number(parsedFromServer.chosen.value);
+        } else if (typeof body.amount === "number" && Number.isFinite(body.amount)) {
+          amount = Number(body.amount);
+        }
+      }
+      // fallback: run existing client extractor on raw OCR text
+      if (amount === null || !Number.isFinite(amount) || amount <= 0) {
+        const m = extractAmountFromOcrText(text);
+        amount = (Number.isFinite(Number(m)) && Number(m) > 0) ? Number(m) : "";
+      }
 
       // Description - first non-empty line or filename
       const firstLine = (text.split(/\r?\n/).map(l => l.trim()).find(Boolean)) || selectedFile.name;
