@@ -14,6 +14,9 @@ export const MAX_WIDTH = 1600;
 export const QUICK_OCR_PSM = 3;
 export const FULL_OCR_PSM = 6;
 
+// whitelist recommended for bottom numeric pass (includes common currency glyphs and letters)
+export const BOTTOM_CROP_NUMERIC_WHITELIST = "0123456789.,₹Rs$£€EURINRUSD";
+
 export async function makeQuickPreview(srcPath) {
   const { path: tmpPath, cleanup } = await tmp.file({ postfix: ".png" });
   await sharp(srcPath, { failOnError: false })

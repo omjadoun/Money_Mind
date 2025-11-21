@@ -70,8 +70,7 @@ class RLAgent {
     this._ensureStateKey(key);
     const arr = Object.entries(this.q[key]).map(([action, score]) => ({ action, score }));
     // optionally apply safety filter: a function(action)=>boolean to hide actions
-    let filtered = arr;
-    if (typeof safetyFilter === "function") {
+    let filtered = arr;    if (typeof safetyFilter === "function") {
       filtered = arr.filter((e) => safetyFilter(e.action));
       // include filtered-out actions at the end with -Infinity to preserve alternatives
       const excluded = arr.filter((e) => !safetyFilter(e.action)).map((e) => ({ action: e.action, score: -Infinity }));

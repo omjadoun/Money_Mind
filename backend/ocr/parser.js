@@ -12,7 +12,7 @@ function todayIso(){const d=new Date();return `${d.getFullYear()}-${pad(d.getMon
 function toDisplay(isoYMD){ if(!isoYMD) return null; const [y,m,d]=isoYMD.split("-"); return `${pad(Number(d))}-${pad(Number(m))}-${y}`; }
 function isoToEpochMs(isoYMD){ if(!isoYMD) return null; const dt=new Date(`${isoYMD}T00:00:00Z`); return Number.isNaN(dt.getTime())?null:dt.getTime(); }
 
-// ---- Date parsing helpers ----
+// ---- Date parsing helpers (UNCHANGED) ----
 function parseNumericDateToken(token) {
   if(!token) return null;
   const cleaned = token.replace(/\s+/g,"").replace(/[\/\.]/g,"-");
@@ -93,7 +93,7 @@ function safeParseNumericToken(token){
   return parseNumericDateToken(tkn);
 }
 
-// ---- Numeric helpers ----
+// ---- Numeric helpers (UNCHANGED) ----
 function normalizeNumberToken(token){
   if(!token) return null;
   let t = String(token).trim();
@@ -123,15 +123,43 @@ function normalizeGroupedDigits(s){
   return t.trim();
 }
 
-// ---------------- findNumbersInText (keeps previous behavior) ----------------
+// ---------------- currency repair mapping ----------------
+const CURRENCY_REPAIRS = [
+  { re: /\b[Rr][Xx]\b/g, to: "₹" },        // RX -> ₹
+  { re: /\b[Rr][sS]\b/g, to: "₹" },        // Rs -> ₹
+  { re: /(?<=\s|^)[Rr](?=\d)/g, to: "₹" }, // R100 -> ₹100
+  { re: /(?<=\d)[Oo](?=\d)/g, to: "0" },   // O between digits -> 0
+  { re: /([Il\|])(?=\d)/g, to: "1" },      // I or l before numbers -> 1
+  { re: /\bS(?=\d{2,})/g, to: "$" }        // S123 -> $123 (conservative)
+];
+
+// ---------------- helper to detect phone/serial-like tokens ----------------
+function looksLikePhoneOrSerial(raw) {
+  if(!raw) return false;
+  const digits = String(raw).replace(/\D/g, "");
+  if(digits.length >= 7 && digits.length <= 12 && /^[0-9\-\s\/\(\)]+$/.test(raw)) {
+    // if it is just digits or digits-with-separators and length plausible for phone or invoice IDs -> treat as phone/serial
+    return true;
+  }
+  // long sequences of digits (>6) without currency are suspicious
+  if(digits.length >= 8 && digits.length <= 15 && !/[₹$€£]/.test(raw)) return true;
+  // serials with alpha-numeric like SN12345 - consider only digits part
+  if(/[A-Za-z]{2,}\d{3,}/.test(raw)) return true;
+  return false;
+}
+
+// ---------------- findNumbersInText (enhanced to return currency) ----------------
 export function findNumbersInText(text){
   if(!text) return [];
   const out = [];
-  const regex = /(?:₹|Rs\.?|INR|\$|USD|EUR|€|£|Rs)\s*[-:]?\s*([0-9OolIlI][0-9OolIlI\s,\.]{0,20}[0-9OolIlI])/ig;
+  // optional currency symbol capture group + numeric token group
+  const regex = /(?:\b(₹|Rs\.?|INR|\$|USD|EUR|€|£|GBP|Rs)\b\s*[:\-]?\s*)?([0-9OolIlI][0-9OolIlI\s,\.]{0,20}[0-9OolIlI])/ig;
   let m;
   const foundSet = new Set();
   while((m = regex.exec(text)) !== null){
-    const rawCapture = m[1].trim();
+    const rawSymbol = m[1] || "";
+    const rawCapture = (m[2] || "").trim();
+    // repair confusions
     const repaired = rawCapture.replace(/[Il\|]/g,"1").replace(/[Oo]/g,"0").replace(/[^\d,.\s-]/g,"");
     const normalized = normalizeGroupedDigits(repaired);
     let value = null;
@@ -153,17 +181,44 @@ export function findNumbersInText(text){
       }
     }
     if(value!==null){
-      const canonical = { raw: m[0].trim(), value: Number(Number(value).toFixed(2)), reparsed: normalized };
-      const key = `${canonical.value}|${canonical.reparsed}`;
+      // infer currency from explicit symbol or local context
+      let currency = null;
+      if(rawSymbol){
+        const s = String(rawSymbol).toLowerCase();
+        if(/₹|rs|inr/.test(s)) currency = "INR";
+        else if(/\$|usd/.test(s)) currency = "USD";
+        else if(/€|eur/.test(s)) currency = "EUR";
+        else if(/£|gbp/.test(s)) currency = "GBP";
+      } else {
+        const ctxStart = Math.max(0, m.index - 10);
+        const ctxEnd = Math.min(text.length, m.index + 10);
+        const context = text.slice(ctxStart, ctxEnd);
+        if(/₹|Rs\.?|INR/i.test(context)) currency = "INR";
+        else if(/\$|USD/i.test(context)) currency = "USD";
+        else if(/€|EUR/i.test(context)) currency = "EUR";
+        else if(/£|GBP/i.test(context)) currency = "GBP";
+      }
+
+      // skip pure phone-like / serial candidates (do not add to list)
+      if(looksLikePhoneOrSerial(m[0])) {
+        // still record them in a separate internal list? no — skip so they don't pollute totals
+        continue;
+      }
+
+      const rawWhole = (rawSymbol ? rawSymbol + " " : "") + rawCapture;
+      const canonical = { raw: rawWhole.trim(), value: Number(Number(value).toFixed(2)), reparsed: normalized, currency };
+      const key = `${canonical.value}|${canonical.reparsed}|${canonical.currency||""}`;
       if(!foundSet.has(key)){ foundSet.add(key); out.push(canonical); }
     }
   }
-  // fallback: bare numbers
+  // fallback: bare numbers (attach currency by context) - still avoid phone-like tokens
   if(out.length===0){
     const altRegex = /([0-9OolIlI][0-9OolIlI\s,\.]{0,20}[0-9OolIlI])/g;
     while((m = altRegex.exec(text)) !== null){
       const rawCapture = m[1].trim();
       if(rawCapture.length>1 && /[0-9]/.test(rawCapture)){
+        // skip phone/serial-like
+        if(looksLikePhoneOrSerial(rawCapture)) continue;
         const repaired = rawCapture.replace(/[Il\|]/g,"1").replace(/[Oo]/g,"0").replace(/[^\d,.\s-]/g,"");
         const normalized = normalizeGroupedDigits(repaired);
         let value = null;
@@ -184,8 +239,17 @@ export function findNumbersInText(text){
           }
         }
         if(value!==null){
-          const canonical = { raw: m[0].trim(), value: Number(Number(value).toFixed(2)), reparsed: normalized };
-          const key = `${canonical.value}|${canonical.reparsed}`;
+          const ctxStart = Math.max(0, m.index - 10);
+          const ctxEnd = Math.min(text.length, m.index + 10);
+          const context = text.slice(ctxStart, ctxEnd);
+          let currency = null;
+          if(/₹|Rs\.?|INR/i.test(context)) currency = "INR";
+          else if(/\$|USD/i.test(context)) currency = "USD";
+          else if(/€|EUR/i.test(context)) currency = "EUR";
+          else if(/£|GBP/i.test(context)) currency = "GBP";
+
+          const canonical = { raw: rawCapture, value: Number(Number(value).toFixed(2)), reparsed: normalized, currency };
+          const key = `${canonical.value}|${canonical.reparsed}|${canonical.currency||""}`;
           if(!foundSet.has(key)){ foundSet.add(key); out.push(canonical); }
         }
       }
@@ -246,134 +310,49 @@ function repairGrosslyLargeCandidate(candidateValue, expectedNet){
   return candidateValue;
 }
 
-// ---------------- core total extraction (original logic) ----------------
-export function extractTotalFromText(text){
-  if(!text) return null;
-  const lines = text.split(/\n/).map(l=>l.trim()).filter(Boolean);
-  const totalLabels = [
-    "grand total","grandtotal","total payable","amount payable","amt payable","amount due","amt due","amount paid","amt paid",
-    "amount:", "amount -", "net payable","net amount","net total","net amt","total amount","total:","total -","total due",
-    "balance due","balance","amount to pay","amount to be paid","payable"
-  ];
+// ---------------- core total extraction (patched, currency-aware and safer) ----------------
+export function extractTotalFromText(text) {
+  const lines = text.split(/\n/).map(l => l.trim());
+  const exactKeywords = ["grand total", "amount due", "balance", "net total", "amount paid"];
+  const fallbackKeywords = ["total"];
 
-  const labelledCandidates = [];
-  for(let i=0;i<lines.length;i++){
-    const low = lines[i].toLowerCase();
-    for(const lbl of totalLabels){
-      if(low.includes(lbl)){
-        const localNums = findNumbersInText(lines[i]);
-        if(localNums.length){
-          for(const n of localNums) labelledCandidates.push({ value:n.value, raw:n.raw, lineIdx:i, reason:"label_same_line" });
-        } else {
-          const nextLine = lines[i+1]||"";
-          const nextNums = findNumbersInText(nextLine);
-          if(nextNums.length) labelledCandidates.push({ value: nextNums[0].value, raw: nextNums[0].raw, lineIdx:i+1, reason:"label_next_line" });
-          else {
-            const fallbackNums = (lines[i].match(/([0-9OolIlI][0-9OolIlI\s,\.]{0,20}[0-9OolIlI])/g) || []);
-            for(const f of fallbackNums){
-              const repaired = normalizeGroupedDigits(f.replace(/[Il\|]/g,"1").replace(/[Oo]/g,"0"));
-              const v = normalizeNumberToken(repaired);
-              if(Number.isFinite(v)) labelledCandidates.push({ value: v, raw: f, lineIdx:i, reason:"label_fallback" });
-            }
-          }
-        }
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    for (const k of exactKeywords) {
+      if (lower.includes(k)) {
+        const nums = findNumbersInText(line);
+        if (nums.length) return {
+          raw: nums.at(-1).raw,
+          value: nums.at(-1).value,
+          reason: "keyword:" + k
+        };
       }
     }
   }
 
-  if(labelledCandidates.length){
-    labelledCandidates.sort((a,b)=>a.lineIdx-b.lineIdx);
-    const chosen = labelledCandidates[labelledCandidates.length-1];
-    return { raw: chosen.raw, value: Number(Number(chosen.value).toFixed(2)), reason: "label_priority_last", subtotal: null, taxes: [] };
-  }
-
-  let subtotal = null;
-  for(const line of lines){
+  for (const line of lines) {
     const lower = line.toLowerCase();
-    if(/\bsub\s*total\b/i.test(lower) || /\bsubtotal\b/i.test(lower)){
-      const n = findNumbersInText(line);
-      if(n.length){ subtotal = n.at(-1).value; break; }
-    }
-  }
-
-  const taxes = [];
-  for(const line of lines){
-    const lower = line.toLowerCase();
-    if(/(gst|cgst|sgst|tax)/i.test(lower)){
-      const n = findNumbersInText(line);
-      if(n.length){
-        for(const item of n){
-          let val = item.value;
-          if(!String(item.raw).includes(".") && val>=100){
-            const maybe = val/100;
-            if(maybe<10000) val = maybe;
-          }
-          taxes.push({ raw: item.raw, value: val });
-        }
-      }
-    }
-  }
-
-  const netCandidates = [];
-  for(let i=0;i<lines.length;i++){
-    const line = lines[i];
-    const lower = line.toLowerCase();
-    if(/\b(total|amount|net|payable|due|balance)\b/.test(lower)){
+    if (/\bsubtotal\b/.test(lower) || /\bsub total\b/.test(lower)) continue;
+    if (fallbackKeywords.some(k => new RegExp(`\\b${k}\\b`).test(lower))) {
       const nums = findNumbersInText(line);
-      for(const n of nums) netCandidates.push({ value:n.value, raw:n.raw, idx:i, line });
+      if (nums.length) return {
+        raw: nums.at(-1).raw,
+        value: nums.at(-1).value,
+        reason: "keyword:total"
+      };
     }
   }
 
-  if(netCandidates.length===0){
-    const allNums = findNumbersInText(text);
-    if(allNums.length){
-      for(let i=0;i<allNums.length;i++){
-        netCandidates.push({ value: allNums[i].value, raw: allNums[i].raw, idx: i + lines.length, line: null });
-      }
-    }
-  }
-
-  let expectedNet = null;
-  if(subtotal!==null){
-    const taxSum = taxes.reduce((s,t)=>s+(Number(t.value)||0),0);
-    expectedNet = Number((subtotal + taxSum).toFixed(2));
-  }
-
-  if(netCandidates.length===0){
-    if(expectedNet!==null){
-      return { raw: String(expectedNet), value: expectedNet, reason: "computed_from_subtotal_and_taxes", subtotal, taxes };
-    }
-    return null;
-  }
-
-  netCandidates.forEach(c => {
-    c.score = 0;
-    c.score += (100 - (c.idx || 0));
-    if(Math.abs(c.value - Math.round(c.value)) > 0.001 || String(c.value).includes(".")) c.score += 10;
-    if(expectedNet!==null) c.score += Math.max(0, 50 - Math.abs(c.value - expectedNet));
-    if(c.idx && c.idx >= lines.length - 3) c.score += 10;
-  });
-
-  netCandidates.sort((a,b) => b.score - a.score);
-  let best = netCandidates[0];
-
-  if(expectedNet!==null && Number.isFinite(best.value)){
-    const diff = Math.abs(best.value - expectedNet);
-    if(diff > Math.max(2, expectedNet * 0.05)){
-      const repaired = repairGrosslyLargeCandidate(best.value, expectedNet);
-      if(Number.isFinite(repaired) && Math.abs(repaired - expectedNet) <= Math.max(2, expectedNet * 0.05)){
-        best = {...best, value: repaired, raw: `${best.raw} (repaired)`};
-        return { raw: best.raw, value: Number(Number(best.value).toFixed(2)), reason: "repaired_candidate_near_expected", subtotal, taxes };
-      } else {
-        return { raw: String(expectedNet), value: expectedNet, reason: "computed_from_subtotal_and_taxes", subtotal, taxes };
-      }
-    }
-  }
-
-  return { raw: best.raw, value: Number(Number(best.value).toFixed(2)), reason: "ranked_candidate", subtotal, taxes };
+  const nums = findNumbersInText(text);
+  if (!nums.length) return null;
+  return {
+    raw: nums.at(-1).raw,
+    value: nums.at(-1).value,
+    reason: "largest"
+  };
 }
 
-// ---------------- date extraction (kept) ----------------
+// ---------------- date extraction (kept unchanged) ----------------
 export function extractDateFromLabels(text){
   if(!text) return null;
   const labelRegex = /\b(?:dt|date|bill date|invoice date|txn date|transaction date|date of purchase|date:)\s*[:\-]?\s*([^\n\r]{5,40})/i;
@@ -413,7 +392,7 @@ export function extractDateFromText(text){
     if(normalized) s += 8;
     return s;
   }
-  const numericRegex = /(\d{1,4}[\/\-\.\s]\d{1,2}[\/\-\.\s]\d{2,4})(?:\s*(?:[01]?\d|2[0-3])[:.][0-5]\d(?:\s?[AaPp][Mm])?)?/g;
+  const numericRegex = /(\d{1,4}[\/\-\.\s]\d{1,2}[\/\-\.\s]\d{2,4})(?:\s*(?:[01]?\d|2[0-3])[:.]\d{2}(?:\s?[AaPp][Mm])?)?/g;
   const textualRegex = /(\d{1,2}(?:st|nd|rd|th)?\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s*,?\s*[0-9]{2,4})|((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:st|nd|rd|th)?\s*,?\s*[0-9]{2,4})/ig;
   const candidates = [];
   for(let i=0;i<allLines.length;i++){
@@ -447,16 +426,19 @@ export function extractDateFromText(text){
   return { iso: best.iso, raw: best.raw, reason: "ranked", score: best.score, sourceLine: best.source };
 }
 
-// ---------------- normalize OCR symbols ----------------
+// ---------------- normalize OCR symbols (enhanced) ----------------
 export function normalizeOcrSymbols(text, opts = { preferINR: true }){
   if(!text) return "";
   let t = text;
   t = t.replace(/\|/g,"I").replace(/[\[\]\}]/g,"").replace(/\.{2,}/g," ... ");
   t = t.replace(/Thank you[^\w\s]*$/i, "Thank you!");
-  const matches = [...t.matchAll(/([£$₹€£RXxIlI])\s*(?=\d{1,3}([.,]\d{2})?)/g)];
-  const symbols = new Set(matches.map(m=>m[1]));
-  if(opts.preferINR && symbols.size>0){
-    t = t.replace(/([RXxIlI£])(?=\d)/g,"₹");
+  // apply currency & OCR repairs conservatively
+  for(const r of CURRENCY_REPAIRS) {
+    try { t = t.replace(r.re, r.to); } catch(e) {}
+  }
+  if(opts.preferINR){
+    t = t.replace(/([RXx])(?=\d)/g,"₹"); // convert RX or R before digits to ₹
+    t = t.replace(/([Il\|])(?=\d)/g,"1");
   }
   return t.replace(/[^\x00-\x7F₹€£$.,:\-\n\sA-Za-z0-9]/g,"");
 }
@@ -483,7 +465,7 @@ export function parseReceiptText(text){
   return {
     merchant,
     amountCandidates: amounts,
-    total: totalInfo ? { raw: totalInfo.raw, value: totalInfo.value, reason: totalInfo.reason, subtotal: totalInfo.subtotal, taxes: totalInfo.taxes } : null,
+    total: totalInfo ? { raw: totalInfo.raw, value: totalInfo.value, reason: totalInfo.reason, subtotal: totalInfo.subtotal, taxes: totalInfo.taxes, currency: totalInfo.currency || null } : null,
     date: finalDateIso,
     dateRaw: dateInfo ? dateInfo.raw : null,
     dateExtractReason: dateInfo ? dateInfo.reason : "fallback:today",
@@ -491,7 +473,7 @@ export function parseReceiptText(text){
   };
 }
 
-// ---------------- TSV-aware parsing ----------------
+// ---------------- TSV-aware parsing (kept with currency attachments) ----------------
 export function parseOcrResult({ text = "", words = null } = {}) {
   const rawLines = String(text || "").split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
 
@@ -529,11 +511,26 @@ export function parseOcrResult({ text = "", words = null } = {}) {
       if(value===null) continue;
       if(/\b\d{6,12}\b/.test(token)) continue;
       if(/\b(19|20)\d{2}\b/.test(line) && value>=1900 && value<=2100) continue;
-      lineCandidates.push({ value, token, lineIndex: i, lineText: line, keyword: /\b(grand\s*total|total|amount|payable|due|balance)\b/i.test(line) });
+      let currency = null;
+      if(/₹|Rs\.?|INR/i.test(token)) currency = "INR";
+      else if(/\$|USD/i.test(token)) currency = "USD";
+      else if(/€|EUR/i.test(token)) currency = "EUR";
+      else if(/£|GBP/i.test(token)) currency = "GBP";
+      else {
+        const ctx = rawLines.slice(Math.max(0,i-1), Math.min(rawLines.length, i+2)).join(" ");
+        if(/₹|Rs\.?|INR/i.test(ctx)) currency = "INR";
+      }
+      if(looksLikePhoneOrSerial(token)) continue;
+      lineCandidates.push({ value, token, lineIndex: i, lineText: line, keyword: /\b(grand\s*total|total|amount|payable|due|balance)\b/i.test(line), currency });
     }
     if(/^[-+]?[\d\s,]{1,15}(\.\d{1,2})?$/.test(line)){
       const v = normalizeNumberToken(line);
-      if(v!==null) lineCandidates.push({ value:v, token: line, lineIndex: i, lineText: line, keyword: /\b(grand\s*total|total|amount|payable|due|balance)\b/i.test(line) });
+      if(v!==null) {
+        let currency = null;
+        const ctx = rawLines.slice(Math.max(0,i-1), Math.min(rawLines.length, i+2)).join(" ");
+        if(/₹|Rs\.?|INR/i.test(ctx)) currency = "INR";
+        lineCandidates.push({ value:v, token: line, lineIndex: i, lineText: line, keyword: /\b(grand\s*total|total|amount|payable|due|balance)\b/i.test(line), currency });
+      }
     }
   }
 
@@ -545,8 +542,14 @@ export function parseOcrResult({ text = "", words = null } = {}) {
       const value = normalizeNumberToken(token);
       if(value===null) continue;
       if(/\b\d{6,12}\b/.test(token)) continue;
-      if(/\b(19|20)\d{2}\b/.test(token) && value>=1900 && value<=2100) continue;
-      wordCandidates.push({ value, token, lineIndex: w.lineIndex ?? null, conf: typeof w.conf === "number"? w.conf : (w.confidence || null), bbox: w.bbox||null, keyword: /\b(grand\s*total|total|amount|payable|due|balance)\b/i.test(w.text || "") });
+      if(/\b(19|20)\\d{2}\b/.test(token) && value>=1900 && value<=2100) continue;
+      let currency = null;
+      if(/₹|Rs\.?|INR/i.test(token)) currency = "INR";
+      else if(/\$|USD/i.test(token)) currency = "USD";
+      else if(/€|EUR/i.test(token)) currency = "EUR";
+      else if(/£|GBP/i.test(token)) currency = "GBP";
+      if(looksLikePhoneOrSerial(token)) continue;
+      wordCandidates.push({ value, token, lineIndex: w.lineIndex ?? null, conf: typeof w.conf === "number"? w.conf : (w.confidence || null), bbox: w.bbox||null, keyword: /\b(grand\s*total|total|amount|payable|due|balance)\b/i.test(w.text || ""), currency });
     }
   }
 
@@ -554,12 +557,19 @@ export function parseOcrResult({ text = "", words = null } = {}) {
 
   const map = new Map();
   allCandidates.forEach(c => {
-    const key = `${c.value}_${c.lineIndex ?? "nl"}_${String(c.token).slice(0,12)}`;
+    const key = `${c.value}_${c.lineIndex ?? "nl"}_${String(c.token).slice(0,12)}_${c.currency||""}`;
     if(!map.has(key)) map.set(key, c);
   });
   const candidates = Array.from(map.values());
 
   const maxLine = rawLines.length - 1;
+
+  // compute dominant currency for scoring preference
+  const docCurrencyCounts = candidates.reduce((acc,c) => { if(c.currency) acc[c.currency] = (acc[c.currency]||0)+1; return acc; }, {});
+  const docCurrencies = Object.keys(docCurrencyCounts);
+  let dominantCurrency = null;
+  if(docCurrencies.length) dominantCurrency = docCurrencies.reduce((a,b)=> docCurrencyCounts[a] > docCurrencyCounts[b] ? a : b);
+
   const scored = candidates.map(c => {
     let score = 0;
     if(c.keyword) score += 45;
@@ -568,7 +578,10 @@ export function parseOcrResult({ text = "", words = null } = {}) {
       if(dist>=0 && dist<=6) score += Math.max(0,(6 - dist) * 4);
     }
     if(c.conf) score += Math.min(25, (c.conf/100) * 20);
-    score += Math.min(25, Math.log10(Math.max(1, c.value)) * 5);
+    // reduced bias for large numbers; keep some preference so fallback to biggest works
+    score += Math.min(10, Math.log10(Math.max(1, c.value)) * 2);
+    if(dominantCurrency && c.currency === dominantCurrency) score += 30;
+    else if(c.currency) score += 6;
     score += (c.lineIndex ?? maxLine) / Math.max(1, maxLine || 1);
     return { ...c, score: Math.round(score*100)/100 };
   });
@@ -585,7 +598,8 @@ export function parseOcrResult({ text = "", words = null } = {}) {
   }
 
   if((!chosen || !Number.isFinite(chosen.value) || chosen.value <= 0) && scored.length){
-    const positives = scored.filter(s => s.value > 0);
+    // fallback: choose largest plausible (not phone/serial)
+    const positives = scored.filter(s => s.value > 0 && !looksLikePhoneOrSerial(s.token));
     if(positives.length) chosen = positives.reduce((a,b) => b.value > a.value ? b : a, positives[0]);
   }
 
@@ -601,12 +615,13 @@ export function parseOcrResult({ text = "", words = null } = {}) {
     conf: s.conf ?? null,
     keyword: Boolean(s.keyword),
     score: s.score,
-    lineText: s.lineText ?? null
+    lineText: s.lineText ?? null,
+    currency: s.currency ?? null
   }));
 
   return {
     amount: chosen && Number.isFinite(chosen.value) ? chosen.value : 0,
-    chosen: chosen ? { value: chosen.value, token: chosen.token, lineIndex: chosen.lineIndex, conf: chosen.conf ?? null, score: chosen.score } : null,
+    chosen: chosen ? { value: chosen.value, token: chosen.token, lineIndex: chosen.lineIndex, conf: chosen.conf ?? null, score: chosen.score, currency: chosen.currency ?? null } : null,
     candidates: candidateOut,
     vendorCandidates,
     dateCandidates,
