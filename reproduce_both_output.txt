@@ -1,0 +1,217 @@
+--- Testing parseReceiptText (Text-Only) ---
+Result: {
+  "merchant": "Test Receipt",
+  "amountCandidates": [
+    {
+      "raw": "13",
+      "value": 13,
+      "reparsed": "13"
+    },
+    {
+      "raw": "05",
+      "value": 5,
+      "reparsed": "05"
+    },
+    {
+      "raw": "2023",
+      "value": 2023,
+      "reparsed": "2023"
+    },
+    {
+      "raw": "100.00",
+      "value": 100,
+      "reparsed": "100.00"
+    },
+    {
+      "raw": "60.00",
+      "value": 60,
+      "reparsed": "60.00"
+    },
+    {
+      "raw": "40.00",
+      "value": 40,
+      "reparsed": "40.00"
+    },
+    {
+      "raw": "2200.00",
+      "value": 2200,
+      "reparsed": "2200.00"
+    }
+  ],
+  "total": {
+    "raw": "2200.00",
+    "value": 2200,
+    "reason": "ranked_candidate",
+    "subtotal": null,
+    "taxes": []
+  },
+  "date": "2023-05-13",
+  "dateRaw": "13-05-2023",
+  "dateExtractReason": "label_match_numeric",
+  "linesCount": 8
+}
+
+--- Testing parseOcrResult (Word-Level) ---
+Result: {
+  "amount": 200,
+  "chosen": {
+    "value": 200,
+    "token": "2200.00",
+    "lineIndex": 6,
+    "conf": null,
+    "score": 92.57
+  },
+  "candidates": [
+    {
+      "value": 2200,
+      "token": "2200.00",
+      "lineIndex": 6,
+      "conf": null,
+      "keyword": true,
+      "score": 82.57,
+      "lineText": "TOTAL .......... 2200.00"
+    },
+    {
+      "value": 0,
+      "token": "TOTAL",
+      "lineIndex": 3,
+      "conf": null,
+      "keyword": true,
+      "score": 53.43,
+      "lineText": null
+    },
+    {
+      "value": 2200,
+      "token": "2200.00",
+      "lineIndex": 3,
+      "conf": null,
+      "keyword": false,
+      "score": 25.14,
+      "lineText": null
+    },
+    {
+      "value": 40,
+      "token": " 40.00",
+      "lineIndex": 5,
+      "conf": null,
+      "keyword": false,
+      "score": 24.72,
+      "lineText": "Bread .......... 40.00"
+    },
+    {
+      "value": 60,
+      "token": " 60.00",
+      "lineIndex": 4,
+      "conf": null,
+      "keyword": false,
+      "score": 21.46,
+      "lineText": "Milk .......... 60.00"
+    },
+    {
+      "value": 100,
+      "token": " 100.00",
+      "lineIndex": 3,
+      "conf": null,
+      "keyword": false,
+      "score": 18.43,
+      "lineText": "Apples ....... 100.00"
+    },
+    {
+      "value": 40,
+      "token": "40.00",
+      "lineIndex": 2,
+      "conf": null,
+      "keyword": false,
+      "score": 12.3,
+      "lineText": null
+    },
+    {
+      "value": 100,
+      "token": "100.00",
+      "lineIndex": 0,
+      "conf": null,
+      "keyword": false,
+      "score": 10,
+      "lineText": null
+    },
+    {
+      "value": 13,
+      "token": "13",
+      "lineIndex": 2,
+      "conf": null,
+      "keyword": false,
+      "score": 9.86,
+      "lineText": "Date: 13-05-2023"
+    },
+    {
+      "value": 60,
+      "token": "60.00",
+      "lineIndex": 1,
+      "conf": null,
+      "keyword": false,
+      "score": 9.03,
+      "lineText": null
+    },
+    {
+      "value": 5,
+      "token": "05",
+      "lineIndex": 2,
+      "conf": null,
+      "keyword": false,
+      "score": 7.78,
+      "lineText": "Date: 13-05-2023"
+    },
+    {
+      "value": 1,
+      "token": "Milk",
+      "lineIndex": 1,
+      "conf": null,
+      "keyword": false,
+      "score": 0.14,
+      "lineText": null
+    },
+    {
+      "value": 1,
+      "token": "Apples",
+      "lineIndex": 0,
+      "conf": null,
+      "keyword": false,
+      "score": 0,
+      "lineText": null
+    }
+  ],
+  "vendorCandidates": [
+    "Test Receipt",
+    "GROCERY STORE"
+  ],
+  "dateCandidates": [
+    {
+      "iso": "2023-05-13",
+      "raw": "13-05-2023",
+      "reason": "label_match_numeric"
+    }
+  ],
+  "rawLines": [
+    "Test Receipt",
+    "GROCERY STORE",
+    "Date: 13-05-2023",
+    "Apples ....... 100.00",
+    "Milk .......... 60.00",
+    "Bread .......... 40.00",
+    "TOTAL .......... 2200.00",
+    "Thank you!"
+  ],
+  "debug": {
+    "candidateCount": 13,
+    "sampleLines": [
+      "Test Receipt",
+      "GROCERY STORE",
+      "Date: 13-05-2023",
+      "Apples ....... 100.00",
+      "Milk .......... 60.00",
+      "Bread .......... 40.00",
+      "TOTAL .......... 2200.00",
+      "Thank you!"
+    ]
+  }
+}

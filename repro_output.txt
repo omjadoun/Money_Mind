@@ -1,0 +1,8 @@
+--- Testing parseReceiptText ---
+Date: 2025-11-21
+Total: {"raw":"28.25","value":28.25,"reason":"ranked_candidate","subtotal":null,"taxes":[]}
+
+--- Testing parseOcrResult ---
+Amount: 28.25
+Chosen Candidate: {"value":28.25,"token":" 28.25","lineIndex":10,"conf":null,"score":66.19}
+Date Candidates: []

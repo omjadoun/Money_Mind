@@ -7,7 +7,7 @@ const PROJECT_REF = 'wqjmhspderdpgqbeyxit';
  */
 export const clearSupabaseStorage = () => {
   console.log('🧹 Clearing Supabase storage to fix header issues...');
-  
+
   // Remove all known Supabase storage keys
   const keysToRemove = [
     `sb-${PROJECT_REF}-auth-token`,
@@ -17,18 +17,18 @@ export const clearSupabaseStorage = () => {
     `supabase.auth.token`,
     `supabase.auth.refreshToken`,
   ];
-  
+
   keysToRemove.forEach(key => {
     localStorage.removeItem(key);
   });
-  
+
   // Also clear any other Supabase-related items
   Object.keys(localStorage).forEach(key => {
     if (key.startsWith('sb-') || key.startsWith('supabase.')) {
       localStorage.removeItem(key);
     }
   });
-  
+
   console.log('✅ Supabase storage cleared');
 };
 
@@ -37,7 +37,7 @@ export const clearSupabaseStorage = () => {
  */
 export const clearOversizedStorage = () => {
   console.log('🔍 Checking for oversized localStorage items...');
-  
+
   Object.keys(localStorage).forEach(key => {
     try {
       const value = localStorage.getItem(key);
@@ -50,7 +50,7 @@ export const clearOversizedStorage = () => {
       localStorage.removeItem(key); // Remove problematic items
     }
   });
-  
+
   console.log('✅ Oversized storage cleanup completed');
 };
 
@@ -58,9 +58,10 @@ export const clearOversizedStorage = () => {
  * Comprehensive cleanup function
  */
 export const performSupabaseCleanup = () => {
-  clearSupabaseStorage();
+  // Only clear oversized items to prevent 431 errors
+  // Do NOT clear all storage as that wipes the active session
   clearOversizedStorage();
-  
+
   // Also clear sessionStorage if needed
   try {
     Object.keys(sessionStorage).forEach(key => {

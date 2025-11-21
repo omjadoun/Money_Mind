@@ -23,7 +23,7 @@ import cron from "node-cron";
 import { checkBudgetAlerts, sendMonthlyReports } from "./services/notificationService.js";
 import { createClient } from "@supabase/supabase-js";
 import phoneMfaRoutes from "./routes/phoneMfaRoutes.js";
-import whatsappMfaRoutes from "./routes/whatsappMfaRoutes.js";
+import googleMfaRoutes from "./routes/googleMfaRoutes.js";
 
 import tmp from "tmp-promise";
 import { initWorkerPool, shutdownWorkerPool } from "./ocr/workerPool.js";
@@ -50,8 +50,8 @@ import { saveReceiptToDb } from "./services/dbSave.js";
 
 const app = express();
 app.use(cors());
-app.use(express.json());
-
+app.use(express.json({ limit: '16kb' }));
+app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 
 const SUPABASE_URL = process.env.SUPABASE_URL || null;
 const SUPABASE_KEY = process.env.SUPABASE_KEY || null;
@@ -82,7 +82,7 @@ if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
 }
 
 app.use("/api/phone-mfa", phoneMfaRoutes);
-app.use("/api/whatsapp-mfa", whatsappMfaRoutes);
+app.use("/api/google-mfa", googleMfaRoutes);
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
@@ -164,7 +164,7 @@ app.post("/ocr-upload", ocrLimiter, upload.single("receipt"), async (req, res) =
   try {
     buffer = await fs.readFile(filePath);
   } catch (e) {
-    try { await fs.unlink(filePath); } catch {}
+    try { await fs.unlink(filePath); } catch { }
     return res.status(500).json({ error: "Failed to read uploaded file" });
   }
 
@@ -178,7 +178,7 @@ app.post("/ocr-upload", ocrLimiter, upload.single("receipt"), async (req, res) =
     cached.date_epoch = cached.date_iso ? isoToEpochMs(cached.date_iso) : null;
     cached.dateRaw = cached.parsed?.dateRaw ?? cached.dateRaw ?? null;
     cached.date_extract_reason = cached.parsed?.dateExtractReason ?? cached.date_extract_reason ?? null;
-    await cleanupUploadsKeepN(UPLOAD_DIR, 3).catch(() => {});
+    await cleanupUploadsKeepN(UPLOAD_DIR, 3).catch(() => { });
     return res.json({ cached: true, ...cached });
   }
 
@@ -187,47 +187,47 @@ app.post("/ocr-upload", ocrLimiter, upload.single("receipt"), async (req, res) =
   try {
     // Quick preview OCR
     let quick = { text: "", confidence: 0, raw: null };
-  let preview;
-  try {
-    preview = await makeQuickPreview(filePath);
-    const qres = await runOcr(preview.path, QUICK_OCR_PSM);
+    let preview;
+    try {
+      preview = await makeQuickPreview(filePath);
+      const qres = await runOcr(preview.path, QUICK_OCR_PSM);
       quick = { text: normalizeOcrSymbols(qres.text || ""), confidence: qres.confidence || 0, raw: qres.raw || null };
-    updateMax(quick.confidence, { filename: safeOriginalName, variant: "quick_preview", cfg: { psm: QUICK_OCR_PSM } });
-    updateStats(quick.confidence);
-    debugNumericAndTotal(quick.text, "quick");
-  } catch (e) {
+      updateMax(quick.confidence, { filename: safeOriginalName, variant: "quick_preview", cfg: { psm: QUICK_OCR_PSM } });
+      updateStats(quick.confidence);
+      debugNumericAndTotal(quick.text, "quick");
+    } catch (e) {
       console.warn("Quick OCR failed:", e && e.message ? e.message : e);
-  } finally {
-    if (preview?.cleanup) {
-        try { await preview.cleanup(); } catch {}
+    } finally {
+      if (preview?.cleanup) {
+        try { await preview.cleanup(); } catch { }
+      }
     }
-  }
 
     // normalize quick parsed
     let parsedQuickRaw = parseReceiptText(quick.text);
     let parsedQuick = normalizeParsedForFrontend(parsedQuickRaw);
 
-  let finalResult = {
-    method: "quick",
-    text: quick.text,
-    confidence: quick.confidence,
+    let finalResult = {
+      method: "quick",
+      text: quick.text,
+      confidence: quick.confidence,
       parsed: parsedQuick,
-    filename: safeOriginalName,
-    mimetype,
-    size,
-    quality: qualityLabel(quick.confidence),
-  };
+      filename: safeOriginalName,
+      mimetype,
+      size,
+      quality: qualityLabel(quick.confidence),
+    };
 
     if (finalResult.parsed?.date) {
       console.log("Date detected (quick):", finalResult.parsed.date);
-  }
+    }
 
     // Multi-variant OCR if low confidence
-  if (quick.confidence < CONFIDENCE_THRESHOLD) {
-    let variants = [];
-    try {
-      variants = await generatePreprocessVariants(filePath);
-    } catch (e) {
+    if (quick.confidence < CONFIDENCE_THRESHOLD) {
+      let variants = [];
+      try {
+        variants = await generatePreprocessVariants(filePath);
+      } catch (e) {
         console.warn("Variant generation failed:", e && e.message ? e.message : e);
       }
 
@@ -236,18 +236,18 @@ app.post("/ocr-upload", ocrLimiter, upload.single("receipt"), async (req, res) =
       let best = { confidence: quick.confidence, text: quick.text, parsed: parsedQuick, variant: "quick" };
       const cfgs = [{ psm: FULL_OCR_PSM, oem: "1" }, { psm: 3, oem: "1" }];
 
-    const tasks = [];
-    for (const v of variants) {
-      for (const cfg of cfgs) {
-        tasks.push(
-          runOcr(v.path, cfg.psm, { oem: cfg.oem })
-            .then(r => ({ v, cfg, r }))
-            .catch(err => ({ v, cfg, err }))
-        );
+      const tasks = [];
+      for (const v of variants) {
+        for (const cfg of cfgs) {
+          tasks.push(
+            runOcr(v.path, cfg.psm, { oem: cfg.oem })
+              .then(r => ({ v, cfg, r }))
+              .catch(err => ({ v, cfg, err }))
+          );
+        }
       }
-    }
 
-    const results = await Promise.all(tasks);
+      const results = await Promise.all(tasks);
       for (const rr of results) {
         if (rr.err) continue;
         const { r, v, cfg } = rr;
@@ -275,24 +275,24 @@ app.post("/ocr-upload", ocrLimiter, upload.single("receipt"), async (req, res) =
 
       debugNumericAndTotal(best.text, "best_variant");
 
-    finalResult = {
-      method: "preprocessed",
-      text: best.text,
-      confidence: best.confidence,
-      parsed: best.parsed,
-      filename: safeOriginalName,
-      mimetype,
-      size,
-      variant: best.variant,
-      quality: qualityLabel(best.confidence),
-    };
+      finalResult = {
+        method: "preprocessed",
+        text: best.text,
+        confidence: best.confidence,
+        parsed: best.parsed,
+        filename: safeOriginalName,
+        mimetype,
+        size,
+        variant: best.variant,
+        quality: qualityLabel(best.confidence),
+      };
 
       if (finalResult.parsed?.date) {
         console.log("Date detected (preprocessed):", finalResult.parsed.date);
-    }
+      }
 
-    for (const v of variants) {
-        try { if (v.cleanup) await v.cleanup(); } catch {}
+      for (const v of variants) {
+        try { if (v.cleanup) await v.cleanup(); } catch { }
       }
       tempVariantCleanups.length = 0;
     }
@@ -325,23 +325,23 @@ app.post("/ocr-upload", ocrLimiter, upload.single("receipt"), async (req, res) =
         }
       }
       for (const v of numericVariants) {
-        try { if (v.cleanup && v !== bottom) await v.cleanup(); } catch {}
+        try { if (v.cleanup && v !== bottom) await v.cleanup(); } catch { }
       }
     } catch (e) {
       console.warn("Numeric-only bottom pass error:", e && e.message ? e.message : e);
     }
 
     // finalize date fields
-  const isoDate = finalResult.parsed?.date ?? todayIso();
-  finalResult.date = isoDate;
-  finalResult.date_iso = isoDate;
-  finalResult.date_picker = isoDate;
-  finalResult.date_display = toDisplay(isoDate);
-  finalResult.date_epoch = isoToEpochMs(isoDate);
-  finalResult.dateRaw = finalResult.parsed?.dateRaw ?? null;
-  finalResult.date_extract_reason = finalResult.parsed?.dateExtractReason ?? "fallback:today";
+    const isoDate = finalResult.parsed?.date ?? todayIso();
+    finalResult.date = isoDate;
+    finalResult.date_iso = isoDate;
+    finalResult.date_picker = isoDate;
+    finalResult.date_display = toDisplay(isoDate);
+    finalResult.date_epoch = isoToEpochMs(isoDate);
+    finalResult.dateRaw = finalResult.parsed?.dateRaw ?? null;
+    finalResult.date_extract_reason = finalResult.parsed?.dateExtractReason ?? "fallback:today";
 
-  debugNumericAndTotal(finalResult.text, "finalResult");
+    debugNumericAndTotal(finalResult.text, "finalResult");
 
     // debug log for frontend shape verification
     console.log("DEBUG returning parsed.total/date ->", {
@@ -352,18 +352,18 @@ app.post("/ocr-upload", ocrLimiter, upload.single("receipt"), async (req, res) =
     // save in background
     saveReceiptToDb(supabase, finalResult, { hash, size }).catch(e => console.warn("DB save background error:", e));
 
-  resultCache.set(hash, finalResult);
+    resultCache.set(hash, finalResult);
 
-  res.json({ cached: false, ...finalResult });
+    res.json({ cached: false, ...finalResult });
   } catch (err) {
     console.error("OCR endpoint error:", err);
     res.status(err.status || 500).json({ error: err.message || "OCR failed" });
   } finally {
-    try { await cleanupUploadsKeepN(UPLOAD_DIR, 3); } catch (e) {}
+    try { await cleanupUploadsKeepN(UPLOAD_DIR, 3); } catch (e) { }
     for (const c of tempVariantCleanups) {
-      try { await c(); } catch {}
+      try { await c(); } catch { }
     }
-    try { await fs.unlink(path.resolve(filePath)); } catch {}
+    try { await fs.unlink(path.resolve(filePath)); } catch { }
   }
 });
 
@@ -422,6 +422,65 @@ app.delete("/api/account/delete", async (req, res) => {
   }
 });
 
+// Avatar upload endpoint (bypasses RLS)
+app.post("/api/account/upload-avatar", upload.single("avatar"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file received" });
+
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: "User ID is required" });
+
+    if (!supabaseAdmin) return res.status(500).json({ error: "Supabase admin client not initialized" });
+
+    const { path: filePath, originalname, mimetype } = req.file;
+    const fileExt = originalname.split('.').pop();
+    const fileName = `${userId}-${Date.now()}.${fileExt}`;
+
+    // Read file buffer
+    const fileBuffer = await fs.readFile(filePath);
+
+    // Upload to Supabase Storage (using admin client to bypass RLS)
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('avatars')
+      .upload(fileName, fileBuffer, {
+        contentType: mimetype,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error("Supabase upload error:", uploadError);
+      throw new Error(`Failed to upload to storage: ${uploadError.message}`);
+    }
+
+    // Get Public URL
+    const { data: { publicUrl } } = supabaseAdmin.storage
+      .from('avatars')
+      .getPublicUrl(fileName);
+
+    // Update User Metadata
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      userId,
+      { user_metadata: { avatar_url: publicUrl } }
+    );
+
+    if (updateError) {
+      console.error("Metadata update error:", updateError);
+      throw new Error(`Failed to update user profile: ${updateError.message}`);
+    }
+
+    res.json({ success: true, publicUrl });
+
+  } catch (error) {
+    console.error("Avatar upload error:", error);
+    res.status(500).json({ error: error.message || "Failed to upload avatar" });
+  } finally {
+    // Cleanup temp file
+    if (req.file) {
+      try { await fs.unlink(req.file.path); } catch { }
+    }
+  }
+});
+
 // Cron jobs
 cron.schedule("0 */6 * * *", async () => { try { await checkBudgetAlerts(); } catch (e) { console.error("checkBudgetAlerts error", e); } });
 cron.schedule("0 9 1 * *", async () => { try { await sendMonthlyReports(); } catch (e) { console.error("sendMonthlyReports error", e); } });
@@ -445,7 +504,7 @@ const PORT = process.env.PORT || 5000;
   } catch (e) {
     console.error("Failed to start:", e);
     if (server) {
-      try { server.close(); } catch {}
+      try { server.close(); } catch { }
     }
     await shutdownWorkerPool();
     process.exit(1);
